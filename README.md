@@ -9,6 +9,8 @@
 
 A native macOS prototype for a possible local phone-distraction assistant. It reads several signals at once and shows a guess about what the person at the Mac is doing. **The guess has not been checked for accuracy, and Gate 0 is not passed.** There are no reminders.
 
+![Doomore showing "Possible phone use" while the keyboard and mouse are idle and the head is turned away from the screen. The camera preview is hidden.](docs/images/app-phone-flag.png)
+
 ## What it does
 
 Direction since the evening of 25 November 2026, decided by the developer: a phone held below the camera cannot be seen, so the app does not depend on recognising a phone in the picture. It combines these signals, all computed on this Mac:

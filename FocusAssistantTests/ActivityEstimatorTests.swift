@@ -203,17 +203,22 @@ final class ActivityEstimatorTests: XCTestCase {
     }
 
     func testStraightAheadIsRelearnedWhileTyping() {
-        // The person shifts in the chair and types facing the screen from the new position.
+        // The person shifts a little in the chair and types facing the screen from the new position.
         var estimator = calibrated(yaw: 0)
-        let typing = feed(&estimator, from: 3.0, through: 8.0) { self.sample($0, yaw: 22, keyboardIdle: 0.4) }
-        XCTAssertEqual(typing[1].posture, .turned)
-        XCTAssertEqual(estimator.baseline?.yaw, 22)
-        XCTAssertEqual(typing.last?.posture, .facing)
+        _ = feed(&estimator, from: 3.0, through: 8.0) { self.sample($0, yaw: 8, keyboardIdle: 0.4) }
+        XCTAssertEqual(estimator.baseline?.yaw, 8)
 
-        // Facing the screen from the new position without input is no longer "turned".
-        let idle = feed(&estimator, from: 8.5, through: 20.0) { self.sample($0, yaw: 22, keyboardIdle: $0 - 8.0) }
+        // Facing the screen from the new position without input is not "turned".
+        let idle = feed(&estimator, from: 8.5, through: 20.0) { self.sample($0, yaw: 8, keyboardIdle: $0 - 8.0) }
         XCTAssertFalse(idle.contains { $0.possiblePhoneUse })
-        XCTAssertEqual(estimator.baseline?.yaw, 22, "idle samples do not move straight-ahead")
+        XCTAssertEqual(estimator.baseline?.yaw, 8, "idle samples do not move straight-ahead")
+    }
+
+    func testLargeTurnWhileTouchingTheKeyboardIsNotLearnedAsStraightAhead() {
+        // 26 Nov 2026: the reference was dragged toward a phone position (+8.6° while the head was near +20°).
+        var estimator = calibrated(yaw: 0)
+        _ = feed(&estimator, from: 3.0, through: 12.0) { self.sample($0, yaw: 22, keyboardIdle: 0.4) }
+        XCTAssertEqual(estimator.baseline?.yaw, 0)
     }
 
     func testSecondsJustAfterTypingDoNotTeachStraightAhead() {

@@ -272,3 +272,20 @@ Change: straight-ahead is now relearned from the last 10 s of face samples taken
 - Analysis adds about **9% of one core** and about **200 MB** of memory (the Vision models) over capture alone, by subtraction of two short runs. Capture alone costs about 20% of one core at 30 fps 1280×720, which is high for delivering frames; the Debug build, the BGRA conversion and the window's once-a-second updates are suspects, none measured.
 - Memory rose 35 MB over two minutes with analysis. Too short to say whether it levels off; the 60-minute run is still needed.
 - **The first capture-only run is discarded.** A guided check was started from the window 22 s in. It ended the run at about 80 s with speech playing, and that run delivered **1920×1080** frames. The clean repeat delivered 1280×720. Why the first run got 1920×1080 is unknown: the capture log lines were not found in the system log store.
+
+## Guided checks with the move step, 26 Nov 2026 (62 s protocol)
+
+One person, read from the app's log. Scored samples exclude the first 5 s of each phase. Not an accuracy figure.
+
+| Run | Build | Phone phase flagged | Screen | Screen-again | Straight-ahead yaw at end |
+|---|---|---|---|---|---|
+| 4 (02:19 PKT) | Relearning without a limit | 0.00 | 0.00 | 0.95 | +8.6° (head near +20° in the phone phase) |
+| 5 (02:32 PKT) | Relearning limited to 10° from straight-ahead | 0.86 | 0.00 | 0.05 | +3.0° |
+
+**Run 4.** Relearning dragged straight-ahead yaw from +0.9° to +8.6°. Facing the screen afterwards (yaw +20…+38°) then read as turned. Head pitch stayed within about ±2° in the phone phase, so the head rules had nothing to act on. Change: only face samples within 10° (yaw and pitch) of the current straight-ahead are used for relearning (`relearnMaxShift`). Estimator, guided-check and replay tests passed (38); the full suite was not rerun.
+
+**Run 5**, Debug build from 02:32 with that change:
+- The phone guess switched on 7 s into the phone phase. The mouse was still in use for the first 3 s, so this was about 4 s after input stopped. Head tilt was +13…+20° (down), turn below 16°, eye outline 0.45–0.71 of baseline.
+- The guess cleared about 5 s after the screen-again cue. The tilt readings stayed +11…+18° until then, so the head was probably still coming up; only 1 of 19 scored screen-again samples was flagged.
+- Straight-ahead yaw stayed between +3.0° and +4.6°, so the limit held. Pitch was relearned from +6.9° to −1.9° in the move step (the shift stayed within 10°). This made screen-again read "down" for about 3 s at tilt +10…+11°, which did not turn the guess on.
+- **Why this run was detected and run 4 was not is uncertain.** In run 5 the head tilted clearly down (+13…+20°); in run 4 it did not move. The limit fixed the reference drift, but how the phone was held probably mattered more for detection. A phone held low with only the eyes lowered (issue #4) remains undetected.

@@ -92,6 +92,11 @@ struct ActivityEstimator {
         /// fell from 0.22 to 0.12 and facing the screen afterwards read 12–17° turned against the
         /// position learned at Start. Zero turns relearning off.
         var relearnSeconds = 10.0
+        /// Only face samples within this many degrees (yaw and pitch) of the current straight-ahead
+        /// are used for relearning, so a head held toward a phone while a key is touched cannot drag
+        /// the reference along. In the fourth guided check (26 Nov 2026) it learned +8.6° while the head
+        /// was near +20°, and facing the screen then read as turned away (75% flagged).
+        var relearnMaxShift = 10.0
         /// Without a face, at least this share of the picture must be a person to count as "face hidden".
         var personCoverage = 0.05
     }
@@ -134,6 +139,12 @@ struct ActivityEstimator {
         activeFaces.removeAll()
     }
 
+    private static func isNear(_ head: HeadPose, _ baseline: Baseline, within limit: Double) -> Bool {
+        if let yaw = head.yaw, let neutral = baseline.yaw, abs(yaw - neutral) > limit { return false }
+        if let pitch = head.pitch, let neutral = baseline.pitch, abs(pitch - neutral) > limit { return false }
+        return true
+    }
+
     mutating func update(_ snapshot: SignalSnapshot) -> ActivityEstimate {
         let head = snapshot.vision.head
         let eyes = snapshot.vision.eyeOpenness
@@ -153,7 +164,9 @@ struct ActivityEstimator {
             // last key press (when the head may already be down at a phone) never teach straight-ahead.
             let lastInput = snapshot.time - snapshot.input.any
             if let last = activeFaces.last, snapshot.time < last.time { activeFaces.removeAll() }
-            if typing, let head { activeFaces.append((snapshot.time, head, eyes)) }
+            if typing, let head, let baseline, Self.isNear(head, baseline, within: rules.relearnMaxShift) {
+                activeFaces.append((snapshot.time, head, eyes))
+            }
             activeFaces.removeAll { $0.time < snapshot.time - rules.relearnSeconds - rules.inputActiveSeconds }
             let confirmed = activeFaces.filter { $0.time <= lastInput && $0.time >= lastInput - rules.relearnSeconds }
             if typing, confirmed.count >= max(1, rules.calibrationSamples) {
