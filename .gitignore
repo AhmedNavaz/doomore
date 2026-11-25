@@ -1,0 +1,16 @@
+.DS_Store
+build/
+DerivedData/
+.build/
+.scratch/
+scratch/
+local-artifacts/
+*.xcuserstate
+xcuserdata/
+*.mlmodel
+*.mlpackage/
+*.mlmodelc/
+*.xcresult/
+
+.codeshi/
+.DS_Store
