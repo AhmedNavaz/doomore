@@ -16,7 +16,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		A10000000000000000000002 /* FocusAssistant.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FocusAssistant.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000000000000000000002 /* Doomore.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Doomore.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000000000000000000003 /* FocusAssistantTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FocusAssistantTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000000000000000000004 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A10000000000000000000005 /* FocusAssistant.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FocusAssistant.entitlements; sourceTree = "<group>"; };
@@ -63,7 +63,7 @@
 		A10000000000000000000013 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				A10000000000000000000002 /* FocusAssistant.app */,
+				A10000000000000000000002 /* Doomore.app */,
 				A10000000000000000000003 /* FocusAssistantTests.xctest */,
 			);
 			name = Products;
@@ -86,7 +86,7 @@
 			name = FocusAssistant;
 			packageProductDependencies = ();
 			productName = FocusAssistant;
-			productReference = A10000000000000000000002 /* FocusAssistant.app */;
+			productReference = A10000000000000000000002 /* Doomore.app */;
 			productType = "com.apple.product-type.application";
 		};
 		A10000000000000000000021 /* FocusAssistantTests */ = {
@@ -155,6 +155,7 @@
 		A10000000000000000000050 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Configuration/FocusAssistant.entitlements;
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
@@ -165,9 +166,10 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Configuration/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/../Frameworks");
-				MARKETING_VERSION = 0.2.0;
+				MARKETING_VERSION = 0.2.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.local.FocusAssistant;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_MODULE_NAME = FocusAssistant;
+				PRODUCT_NAME = Doomore;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 			};
@@ -176,6 +178,7 @@
 		A10000000000000000000051 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Configuration/FocusAssistant.entitlements;
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
@@ -186,9 +189,10 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Configuration/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/../Frameworks");
-				MARKETING_VERSION = 0.2.0;
+				MARKETING_VERSION = 0.2.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.local.FocusAssistant;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_MODULE_NAME = FocusAssistant;
+				PRODUCT_NAME = Doomore;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 			};
@@ -207,7 +211,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.local.FocusAssistantTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FocusAssistant.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/FocusAssistant";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Doomore.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Doomore";
 			};
 			name = Debug;
 		};
@@ -224,7 +228,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.local.FocusAssistantTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FocusAssistant.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/FocusAssistant";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Doomore.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Doomore";
 			};
 			name = Release;
 		};

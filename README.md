@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/images/icon.png" alt="Doomore app icon" width="96" height="96">
+
 <h1>Doomore</h1>
 
 <h3>Catch the "quick look" at your phone before it eats your hour.</h3>
@@ -42,8 +44,18 @@ Picking up your phone "for a second" is how an hour disappears. Blockers on the 
 
 ## Install
 
-1. Download `FocusAssistant-…-macOS.zip` from the [latest release](https://github.com/AhmedNavaz/doomore/releases/latest) and unzip it.
-2. Move **FocusAssistant** to Applications.
+**One line in Terminal** (downloads the latest release, installs it to Applications and opens it):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/AhmedNavaz/doomore/main/scripts/install.sh | bash
+```
+
+Read the [script](scripts/install.sh) first if you like. It only downloads the release zip from this repo's GitHub releases and copies the app.
+
+**Or by hand:**
+
+1. Download the zip from the [latest release](https://github.com/AhmedNavaz/doomore/releases/latest) and unzip it.
+2. Move **Doomore** to Applications.
 3. The app is ad-hoc signed and **not notarized**, so macOS blocks the first open. Right-click the app, choose **Open**, then confirm. Or allow it in **System Settings → Privacy & Security**.
 4. Choose **Start monitoring** from the menu bar icon and allow camera and notification access.
 
@@ -139,7 +151,7 @@ Requirements: Apple silicon Mac, Xcode with the macOS SDK. No package manager, d
 # Debug build, with the developer test window
 xcodebuild -project FocusAssistant.xcodeproj -scheme FocusAssistant -configuration Debug \
   -destination 'platform=macOS,arch=arm64' -derivedDataPath build/DerivedData build
-open build/DerivedData/Build/Products/Debug/FocusAssistant.app
+open build/DerivedData/Build/Products/Debug/Doomore.app
 
 # Release build, as shipped
 xcodebuild -project FocusAssistant.xcodeproj -scheme FocusAssistant -configuration Release \

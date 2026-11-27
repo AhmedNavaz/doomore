@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Doomore: a free, private Mac app that stops phone distraction while you work</title>
 <meta name="description" content="Doomore is a free, open-source macOS menu bar app that notices when you look away from your work to check your phone and nudges you back. Everything runs on your Mac. No images saved, nothing uploaded.">
+<link rel="icon" type="image/png" href="images/icon.png">
+<link rel="apple-touch-icon" href="images/icon.png">
 <link rel="canonical" href="https://ahmednavaz.github.io/doomore/">
 <meta name="theme-color" content="#111418">
 
@@ -30,7 +32,7 @@
   "description": "A free, open-source macOS menu bar app that notices when you look away from your work, for example to check your phone, and reminds you to get back to it. It runs entirely on your Mac.",
   "applicationCategory": "ProductivityApplication",
   "operatingSystem": "macOS 14 or later (Apple silicon)",
-  "softwareVersion": "0.2.0",
+  "softwareVersion": "0.2.1",
   "license": "https://opensource.org/licenses/MIT",
   "url": "https://ahmednavaz.github.io/doomore/",
   "downloadUrl": "https://github.com/AhmedNavaz/doomore/releases/latest",
@@ -98,6 +100,11 @@
   ol.install { max-width:760px; margin:0 auto; color:var(--muted); }
   ol.install li { margin:10px 0; }
   ol.install strong { color:var(--text); }
+  .installnote { max-width:760px; margin:0 auto 16px; color:var(--muted); text-align:center; }
+  .installnote strong { color:var(--text); }
+  .code { max-width:760px; margin:0 auto 16px; display:flex; gap:12px; align-items:center; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 16px; }
+  .code code { flex:1; overflow-x:auto; white-space:nowrap; font:14px ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .code button { background:var(--red); color:#fff; border:0; border-radius:8px; padding:7px 14px; font-weight:600; cursor:pointer; }
   .final { text-align:center; padding:80px 0; }
   footer { border-top:1px solid var(--line); color:var(--muted); font-size:14px; padding:24px 0 40px; text-align:center; }
   footer a { color:var(--muted); margin:0 10px; }
@@ -107,7 +114,7 @@
 <body>
 <div class="wrap">
   <nav>
-    <a class="brand" href="./">Doomore</a>
+    <a class="brand" href="./"><img src="images/icon.png" alt="" width="28" height="28" style="vertical-align:middle;margin-right:8px">Doomore</a>
     <div class="links">
       <a href="#features">Features</a>
       <a href="#privacy">Privacy</a>
@@ -123,7 +130,7 @@
       <a class="btn primary" href="https://github.com/AhmedNavaz/doomore/releases/latest">Download for Mac</a>
       <a class="btn ghost" href="https://github.com/AhmedNavaz/doomore">View on GitHub</a>
     </div>
-    <p class="meta">Version 0.2.0 · macOS 14+ · Apple silicon · MIT license · Experimental</p>
+    <p class="meta">Version 0.2.1 · macOS 14+ · Apple silicon · MIT license · Experimental</p>
   </header>
 
   <div class="hero">
@@ -166,12 +173,9 @@
 
   <section id="install">
     <h2>Install</h2>
-    <ol class="install">
-      <li>Download the zip from the <a href="https://github.com/AhmedNavaz/doomore/releases/latest">latest release</a> and unzip it.</li>
-      <li>Move <strong>FocusAssistant</strong> to Applications.</li>
-      <li>The app is not notarized yet, so macOS blocks the first open. <strong>Right-click the app, choose Open</strong>, then confirm.</li>
-      <li>Choose <strong>Start monitoring</strong> from the menu bar icon and allow camera and notification access.</li>
-    </ol>
+    <p class="installnote">Paste this into Terminal. It downloads the latest release, installs it to Applications and opens it.</p>
+    <div class="code"><code id="cmd">curl -fsSL https://raw.githubusercontent.com/AhmedNavaz/doomore/main/scripts/install.sh | bash</code><button type="button" onclick="navigator.clipboard.writeText(document.getElementById('cmd').textContent);this.textContent='Copied'">Copy</button></div>
+    <p class="installnote">Or <a href="https://github.com/AhmedNavaz/doomore/releases/latest">download the zip</a>, move <strong>Doomore</strong> to Applications, then right-click it and choose <strong>Open</strong>. The app is not notarized yet, so macOS asks once.</p>
   </section>
 
   <section id="faq">

@@ -11,7 +11,7 @@ struct FocusAssistantApp: App {
         #if DEBUG
         // Developer test window (live signals, guided checks, shared testing). Debug builds only;
         // a release build ships without it, and the welcome screen opens from the app delegate.
-        Window("FocusAssistant — Focus signals (test build)", id: "diagnostics") {
+        Window("Doomore — Focus signals (test build)", id: "diagnostics") {
             DiagnosticsView(model: model)
                 .sheet(isPresented: $model.showOnboarding) {
                     OnboardingView(finish: model.finishOnboarding)
@@ -24,7 +24,7 @@ struct FocusAssistantApp: App {
         }
         .defaultSize(width: 920, height: 760)
         #endif
-        Window("FocusAssistant Settings", id: "settings") {
+        Window("Doomore Settings", id: "settings") {
             SettingsView(model: model)
         }
         .windowResizability(.contentSize)
@@ -32,7 +32,7 @@ struct FocusAssistantApp: App {
             MenuBarContent(model: model)
         } label: {
             Image(systemName: model.monitoringStatus.symbol)
-                .accessibilityLabel("FocusAssistant: \(model.monitoringStatus.line)")
+                .accessibilityLabel("Doomore: \(model.monitoringStatus.line)")
                 .onAppear {
                     appDelegate.model = model
                     #if !DEBUG
@@ -83,7 +83,7 @@ private struct MenuBarContent: View {
             NSApp.activate(ignoringOtherApps: true)
         }
         #endif
-        Button("Quit FocusAssistant") { NSApp.terminate(nil) }
+        Button("Quit Doomore") { NSApp.terminate(nil) }
             .keyboardShortcut("q")
     }
 }
@@ -108,7 +108,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if !visible { welcomeWindow?.close(); welcomeWindow = nil; return }
         guard welcomeWindow == nil else { return }
         let window = NSWindow(contentRect: .zero, styleMask: [.titled, .closable], backing: .buffered, defer: false)
-        window.title = "Welcome to FocusAssistant"
+        window.title = "Welcome to Doomore"
         window.isReleasedWhenClosed = false
         window.contentView = NSHostingView(rootView: OnboardingView(finish: model.finishOnboarding))
         window.center()

@@ -16,7 +16,7 @@ enum ReminderNotification {
     }
 
     static func content(for event: InterventionEvent) -> Content {
-        Content(identifier: event.episodeID.uuidString, title: "FocusAssistant", body: event.kind.headline)
+        Content(identifier: event.episodeID.uuidString, title: "Doomore", body: event.kind.headline)
     }
 
     /// Maps a notification response to an engine action. Opening or dismissing the

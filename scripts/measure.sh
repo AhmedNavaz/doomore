@@ -57,7 +57,7 @@ summarise() {
     echo "Thermal: $(pmset -g therm 2>/dev/null | grep -i 'CPU_Speed_Limit\|warning' | tr '\n' ' ' || true)"
 } > "$OUT"
 
-if pgrep -x FocusAssistant > /dev/null; then pkill -x FocusAssistant || true; sleep 1; fi
+if pgrep -x Doomore > /dev/null; then pkill -x Doomore || true; sleep 1; fi
 
 # 1. No app: whole-system CPU from top's header (user + sys, share of all cores).
 echo "Condition 1/3: no app, $SECONDS_EACH s"
@@ -74,7 +74,7 @@ run_condition() {
     runner=$!
     pid=""
     for _ in $(seq 1 60); do
-        pid=$(pgrep -x FocusAssistant || true)
+        pid=$(pgrep -x Doomore || true)
         [ -n "$pid" ] && break
         sleep 1
     done

@@ -176,7 +176,7 @@ struct OnboardingView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Welcome to FocusAssistant").font(.title.bold())
+            Text("Welcome to Doomore").font(.title.bold())
             Text("It nudges you when you drift to your phone while you work. Everything runs on this Mac.")
             VStack(alignment: .leading, spacing: 8) {
                 Label("Uses the camera to read your head and eye direction and whether your hands show. It saves no pictures and sends nothing anywhere.", systemImage: "video")

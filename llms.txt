@@ -9,7 +9,7 @@
 - Intensities: Gentle, Standard, Strict.
 - Dismissal: wait 15 seconds, solve a math problem, type a commitment, or stand up and stretch.
 - Learning: "Not a distraction" makes detection less sensitive after repeated use.
-- Distribution: GitHub releases, ad-hoc signed, not notarized.
+- Distribution: GitHub releases, ad-hoc signed, not notarized. Terminal install: `curl -fsSL https://raw.githubusercontent.com/AhmedNavaz/doomore/main/scripts/install.sh | bash`
 
 ## Docs
 

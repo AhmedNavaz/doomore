@@ -14,7 +14,7 @@
 #   --release          build/run the Release configuration instead of Debug
 #   --no-build         use the app already built for the chosen configuration
 #
-# It closes any running FocusAssistant first. If macOS has no stored permission for this
+# It closes any running Doomore first. If macOS has no stored permission for this
 # exact build, its camera (or microphone) prompt appears and the run waits up to 90 s for
 # Allow. That happens after every rebuild while the app is ad-hoc signed. Nothing is saved
 # except text readings (numbers and label names) in the macOS log; they are copied to
@@ -41,7 +41,7 @@ for arg in "$@"; do
     esac
 done
 
-APP="$ROOT/build/DerivedData/Build/Products/$CONFIG/FocusAssistant.app"
+APP="$ROOT/build/DerivedData/Build/Products/$CONFIG/Doomore.app"
 mkdir -p build
 if [ "$BUILD" -eq 1 ]; then
     echo "Building ($CONFIG)…"
@@ -65,9 +65,9 @@ camera_state() {
     if [ -n "$PROBE" ]; then "$PROBE" 2>/dev/null || echo unknown; else echo unknown; fi
 }
 
-if pgrep -x FocusAssistant > /dev/null; then
-    echo "Closing the running FocusAssistant first."
-    pkill -x FocusAssistant || true
+if pgrep -x Doomore > /dev/null; then
+    echo "Closing the running Doomore first."
+    pkill -x Doomore || true
     sleep 1
 fi
 
@@ -81,10 +81,10 @@ DURING="not seen on"
 WAITED=0
 LIMIT=$((RUN_SECONDS + 130)) # Covers the 90 s wait for a permission prompt.
 sleep 2
-while pgrep -x FocusAssistant > /dev/null; do
+while pgrep -x Doomore > /dev/null; do
     if [ "$WAITED" -ge "$LIMIT" ]; then
         echo "The app did not quit by itself; closing it."
-        pkill -x FocusAssistant || true
+        pkill -x Doomore || true
         break
     fi
     state=$(camera_state)
