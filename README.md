@@ -20,9 +20,7 @@
 ---
 
 <div align="center">
-<img src="docs/images/warning.png" alt="Doomore's full-screen warning: Phone down, with a motivational line and three buttons" width="760">
-<br><br>
-<img src="docs/images/settings.png" alt="Doomore settings: Gentle, Standard and Strict intensity, delivery and dismiss options" width="380">
+<img src="docs/images/hero.png" alt="Doomore's full-screen warning next to its Settings window" width="900">
 </div>
 
 ## How it feels
