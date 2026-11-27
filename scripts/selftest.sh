@@ -2,14 +2,17 @@
 # Runs the app by itself for a few seconds with the camera on, then prints what it measured.
 # Nobody has to press a button, so a person or a coding agent can run the same check.
 #
-# Usage: scripts/selftest.sh [seconds] [--sound] [--capture-only] [--guided] [--no-preview] [--no-build]
-#   seconds         how long the camera stays on (default 12, allowed 3 to 900)
-#   --guided        the spoken guided phone check instead (about 62 s): the app says when to
-#                   look at the screen, shift position, use the phone, and labels the readings
-#   --no-preview    hide the live picture (for resource measurements)
-#   --sound         also name the kind of sound nearby (uses the microphone)
-#   --capture-only  camera without analysis, as a baseline for measurements
-#   --no-build      use the Debug app already built
+# Usage: scripts/selftest.sh [seconds] [--sound] [--capture-only] [--guided|--guided-behavior] [--no-preview] [--release] [--no-build]
+#   seconds            how long the camera stays on (default 12, allowed 3 to 900)
+#   --guided           the spoken guided phone check instead (about 62 s): the app says when to
+#                      look at the screen, shift position, use the phone, and labels the readings
+#   --guided-behavior  the spoken Milestone 1 guided behavior test (about 198 s): idle screen,
+#                      keyboard typing, quick reply grace, and sustained phone reminder
+#   --no-preview       hide the live picture (for resource measurements)
+#   --sound            also name the kind of sound nearby (uses the microphone)
+#   --capture-only     camera without analysis, as a baseline for measurements
+#   --release          build/run the Release configuration instead of Debug
+#   --no-build         use the app already built for the chosen configuration
 #
 # It closes any running FocusAssistant first. If macOS has no stored permission for this
 # exact build, its camera (or microphone) prompt appears and the run waits up to 90 s for
@@ -22,23 +25,27 @@ cd "$ROOT"
 
 RUN_SECONDS=12
 GUIDED=0
+GUIDED_BEHAVIOR=0
 APP_ARGS=""
 BUILD=1
+CONFIG=Debug
 for arg in "$@"; do
     case "$arg" in
         --sound|--capture-only|--no-preview) APP_ARGS="$APP_ARGS $arg" ;;
         --guided) APP_ARGS="$APP_ARGS $arg"; GUIDED=1 ;;
+        --guided-behavior) APP_ARGS="$APP_ARGS $arg"; GUIDED_BEHAVIOR=1 ;;
+        --release) CONFIG=Release ;;
         --no-build) BUILD=0 ;;
-        ''|*[!0-9]*) echo "usage: scripts/selftest.sh [seconds] [--sound] [--capture-only] [--guided] [--no-preview] [--no-build]" >&2; exit 2 ;;
+        ''|*[!0-9]*) echo "usage: scripts/selftest.sh [seconds] [--sound] [--capture-only] [--guided|--guided-behavior] [--no-preview] [--release] [--no-build]" >&2; exit 2 ;;
         *) RUN_SECONDS=$arg ;;
     esac
 done
 
-APP="$ROOT/build/DerivedData/Build/Products/Debug/FocusAssistant.app"
+APP="$ROOT/build/DerivedData/Build/Products/$CONFIG/FocusAssistant.app"
 mkdir -p build
 if [ "$BUILD" -eq 1 ]; then
-    echo "Building…"
-    if ! xcodebuild -project FocusAssistant.xcodeproj -scheme FocusAssistant -configuration Debug \
+    echo "Building ($CONFIG)…"
+    if ! xcodebuild -project FocusAssistant.xcodeproj -scheme FocusAssistant -configuration "$CONFIG" \
         -destination 'platform=macOS,arch=arm64' -derivedDataPath build/DerivedData build > build/selftest-build.log 2>&1; then
         echo "BUILD FAILED (full log: build/selftest-build.log)"
         grep -E "error:" build/selftest-build.log | head -20
@@ -47,6 +54,7 @@ if [ "$BUILD" -eq 1 ]; then
 fi
 [ -d "$APP" ] || { echo "App not built yet: $APP" >&2; exit 1; }
 [ "$GUIDED" -eq 1 ] && RUN_SECONDS=62 # Matches GuidedCheck.totalSeconds.
+[ "$GUIDED_BEHAVIOR" -eq 1 ] && RUN_SECONDS=198 # Matches GuidedCheck.totalSeconds(for: .behaviorEngine).
 
 # A small helper that reports whether any camera is switched on, without opening one.
 PROBE=build/camera-in-use
@@ -65,7 +73,7 @@ fi
 
 BEFORE=$(camera_state)
 STARTED=$(date '+%Y-%m-%d %H:%M:%S')
-echo "Starting the app: the camera will be on for about $RUN_SECONDS s. If macOS asks for permission, click Allow."
+echo "Starting the app ($CONFIG): the camera will be on for about $RUN_SECONDS s. If macOS asks for permission, click Allow."
 # shellcheck disable=SC2086
 open -n "$APP" --args --selftest "$RUN_SECONDS" $APP_ARGS
 
@@ -89,7 +97,7 @@ AFTER=$(camera_state)
 
 REPORT=build/selftest-last.txt
 {
-    echo "Self-test started $STARTED, requested $RUN_SECONDS s$APP_ARGS"
+    echo "Self-test started $STARTED, config $CONFIG, requested $RUN_SECONDS s$APP_ARGS"
     echo "Camera before the run: $BEFORE"
     echo "Camera during the run: $DURING"
     echo "Camera after the app quit: $AFTER"

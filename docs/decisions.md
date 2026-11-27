@@ -1,10 +1,10 @@
-# Decisions — Milestone 0
+# Decisions — Milestone 0 & Milestone 1
 
-25 November 2026. Scope: the supplied Behavioral Focus Assistant specification, Milestone 0 only.
+25–26 November 2026. Scope: the supplied Behavioral Focus Assistant specification. Milestone 0 Gate 0 was approved by the developer on 26 November 2026 on the signal-based path; Milestone 1 (behavioral engine) is now in progress.
 
 ## Direction change — 25 November 2026, evening
 
-The developer redirected the work in the shared conversation: a phone in use is usually below the camera's view, so the app must read “everything”, meaning the person's activity, head position and sounds, and the developer and the agent must be able to test it together. The first live classifier scene pointed the same way: with a phone held in plain view, the whole-image `phone` label scored 0.0293 ([results](poc-results.md)). This overrides the Milestone 0 plan to wait for a licensed phone-object detector before reading any behaviour. It was the developer's decision. It is not a Gate 0 approval.
+The developer redirected the work in the shared conversation: a phone in use is usually below the camera's view, so the app must read “everything”, meaning the person's activity, head position and sounds, and the developer and the agent must be able to test it together. The first live classifier scene pointed the same way: with a phone held in plain view, the whole-image `phone` label scored 0.0293 ([results](poc-results.md)). This overrides the Milestone 0 plan to wait for a licensed phone-object detector before reading any behaviour. It was the developer's decision.
 
 What changed as a result:
 
@@ -25,7 +25,7 @@ Initial `git status --short --branch` / `git rev-parse --show-toplevel` reported
 
 Observed environment: macOS 27.0.1 (26A434), arm64, Apple M3 Pro, 18 GB RAM; Xcode 27.1 (27A9275), Swift 6.4 compiler, macOS 27.0 SDK. Personal hardware identifiers are deliberately excluded from these records.
 
-Created a standalone Xcode application and hosted XCTest target. `com.local.FocusAssistant` is temporary and local. Apple silicon only (`ARCHS=arm64`); minimum macOS 14 is retained. Swift 5 language mode uses the established AVFoundation delegate/serial-queue pattern. There are no unchecked Sendable declarations. Migrating to Swift 6's full isolation checking requires a separate reviewed ownership design, not suppressing buffer errors.
+Created a standalone Xcode application and hosted XCTest target. `com.local.FocusAssistant` is temporary and local. Apple silicon only (`ARCHS=arm64`); minimum macOS 14 is retained. Swift 5 language mode uses the established AVFoundation delegate/serial-queue pattern. There are no unchecked Sendable declarations in production code. Migrating to Swift 6's full isolation checking requires a separate reviewed ownership design, not suppressing buffer errors.
 
 ## Local SDK and primary documentation check
 
@@ -43,7 +43,8 @@ Checked headers under `$(xcrun --show-sdk-path)/System/Library/Frameworks` befor
 | Person segmentation, hand pose | `VNGeneratePersonSegmentationRequest` macOS 12, `VNDetectHumanHandPoseRequest` macOS 11, per the local headers |
 | Sound classifier | `SNClassifySoundRequest(classifierIdentifier: .version1)`, macOS 12. Queried without a microphone: 303 labels, 3 s window, 0.5 overlap. `SNAnalyzer.h` says analysis may block and may be called from an `AVAudioEngine` tap callback but not a realtime context |
 | Keyboard and pointer idle time | `CGEventSource.secondsSinceLastEventType`. Inside the sandboxed test host it returned keyboard 313.2 s and pointer 8.4 s; an unsandboxed script about one second later returned 314.3 s and 9.5 s. So the sandbox does not block it, and it needs no permission. The persistent lines of the system permission log show the same checks for old and new builds at launch (WindowServer and coreaudiod asking about this app), so reading the counters added none |
-| Sleep/session/display notifications | Public NSWorkspace header. Prototype additionally stops on diagnostics deactivation; actual lock behavior still requires hardware validation |
+| Foreground application ID | `NSWorkspace.shared.frontmostApplication` and `NSWorkspace.didActivateApplicationNotification` (public AppKit API predating macOS 14; reads bundle identifier and display name only, no window titles or contents, no extra permission) |
+| Sleep/session/display notifications | Public NSWorkspace header. Prototype additionally stops on diagnostics deactivation; lock and quit verified on hardware on 26 November 2026 (lock with background capture ticked remains to be verified) |
 
 Successful compile at deployment target 14 checks symbol availability but is not execution evidence on macOS 14. The installed SDK is used without silently raising the target. No external model's deployment compatibility can be claimed because none is included.
 
@@ -61,39 +62,91 @@ One queue owns session mutation, preview connection mutation, callback processin
 
 Serial synchronous inference plus AVFoundation late-frame discard permits at most one inference at a time. The tested monotonic schedule admits at most one sample per half second without catch-up (one per second until the direction change above). Per-frame data is not stored; only counters and at most 300 latency numbers remain in memory. Each analysed frame is published to the UI once, and counters alone at most twice per second; this is not a frame queue.
 
-Requested-run identity uses a small lock-protected command token; actual capture state stays queue-confined. Stop invalidates pending startup immediately. Checks before/after blocking setup/start suppress cancelled runs; stop executes after any in-flight system call/inference. Stop status remains visible until teardown returns. Exact release latency requires human measurement; a blocking OS operation cannot be cancelled instantly.
+Requested-run identity uses a small lock-protected command token; actual capture state stays queue-confined. Stop invalidates pending startup immediately. Checks before/after blocking setup/start suppress cancelled runs; stop executes after any in-flight system call/inference. Stop status remains visible until teardown returns.
 
-Teardown therefore runs on the same queue that delivers sample callbacks, though never from inside a callback. That arrangement has not been exercised on hardware. If Stop or Quit hangs in the live check, giving the sample delegate its own queue, separate from session control, is the first change to try.
+Teardown therefore runs on the same queue that delivers sample callbacks, though never from inside a callback. On hardware (26 November 2026 Release checks), stop took 117–168 ms with no hang on Stop, lock, or Quit.
 
 Start is explicit, permission is requested only there, and callbacks carry a generation token. If the system permission prompt deactivates the window, that request is cancelled like any other deactivation. The answer is then reported in the status line and capture still needs another explicit Start; a granted answer never starts the camera on behalf of a cancelled request. Permission denial, disconnection, runtime interruption, revoked authorization, suspension, >5 seconds without frames, session inactivity, and thermal pressure stop or refuse capture. There is no automatic recovery loop; user-driven retry bounds recovery and prevents repeated camera reopening. A busy-camera property is only a hint; meeting compatibility remains unverified.
 
 By default the window must remain active: hide/minimize/close/app switch cancels pending or running capture, and wake never automatically resumes. A visible checkbox lifts this for app switches, hiding and minimizing (see the direction change above). Background-workload power behavior has not been measured. Built-in camera auto-selection is allowed; external selection is explicit; Continuity Camera is excluded.
 
-**Frame size: 1280×720, the developer's decision on 25 November 2026**, chosen over 1920×1080 (most detail, most processing) and 640×480 (least processing, 4:3, smallest phone). Background: the app first requested a 640×480 session preset. It was accepted, but the data output delivered 1920×1080, so the preset did not control frame size. The likely reason, not confirmed by experiment, is that this output sets an explicit pixel format, and the local `AVCaptureVideoDataOutput.h` ties preset-driven settings to `videoSettings = nil`. The built-in camera lists native 1920×1080, 1280×720 and 640×480 modes ([results](poc-results.md)).
-
-Capture now also requests the `hd1280x720` session preset. Inside the configuration block that adds the input and output, it selects the device's exact native 1280×720 `activeFormat`, preferring `420v`, then the highest maximum frame rate (`CaptureFormatChoice`, unit-tested). It locks the device only for that assignment and leaves frame duration at the format's default. A camera with no exact 1280×720 mode is refused with a status message; no nearby size, scaling or crop is substituted, so an external camera without that mode cannot be used in this experiment. Output scaling through width/height `videoSettings` keys was not used because the local header documents it only for iOS. `AVCaptureSessionPresetInputPriority` is unavailable on macOS in the local SDK, and the header does not say whether a macOS session may later change a format set this way, so the app logs the device's active format after start and the UI shows the delivered size. On hardware, `startRunning` reset the camera to 1920×1080 in the app, even with the preset and format set. That happened in four runs: three before the format was set a second time, and once in the 20:51 log before the reset was corrected. A bare probe session without a preview did not reset it; the cause is unknown. So after `startRunning` the app checks the active format and, if it changed, sets 1280×720 again on the running session. One Debug run (20:51) then delivered 1280×720 at about 26–30 fps with 0 drops ([results](poc-results.md)). The first few frames of a run may still be 1920×1080 before that second setting. Measurements taken before that run describe 1920×1080 capture. Capture does not stretch frames or change hardware frame duration. Classification uses upright unmirrored pixels; external camera orientation is unvalidated. Mirror preview affects only the preview connection and overlay transform. A future detector must establish its native input/preprocessing before integration.
+**Frame size: 1280×720, the developer's decision on 25 November 2026**, chosen over 1920×1080 (most detail, most processing) and 640×480 (least processing, 4:3, smallest phone). Capture requests the `hd1280x720` session preset, selects the exact native 1280×720 `activeFormat` preferring `420v`, and re-applies 1280×720 after `startRunning` if macOS resets it to 1920×1080. Capture does not stretch frames or change hardware frame duration.
 
 ## Distribution and privacy
 
-The source entitlements file requests App Sandbox, camera and microphone (`com.apple.security.device.audio-input`, added with the sound signal); no networking entitlement. Local ad-hoc development signing requires no private identity. The designated requirement of an ad-hoc build is the code hash of that exact build, so camera consent does not carry over to a rebuilt app. The system permission log on 25 November 2026 shows it: “Failed to match existing code requirement” with the old and new code hashes, followed by a new prompt, for each new build. The same applies to the microphone. A consistent signing identity would stop the repeat prompts. The valid development certificates on this Mac belong to company teams and the personal one expired on 30 October 2026, so the choice is left to the developer and the project stays ad-hoc.
+The source entitlements file requests App Sandbox, camera and microphone (`com.apple.security.device.audio-input`, added with the sound signal); no networking entitlement. Local ad-hoc development signing requires no private identity. The designated requirement of an ad-hoc build is the code hash of that exact build, so camera consent does not carry over to a rebuilt app.
 
-What Xcode signs locally differs from the source file. Read back with `codesign` on 25 November 2026:
+`com.apple.security.get-task-allow` is the debugging entitlement Xcode injects into locally built products. It is not in the source file. A distributed build should not carry a debugging entitlement; archive/export signing belongs to Milestone 3.
 
-| Artifact | Signature flags | Entitlements in the signature |
-|---|---|---|
-| Debug app, which is also the test host | `adhoc`. Xcode logs “Disabling hardened runtime with ad-hoc codesigning” | Sandbox, camera, `get-task-allow`, and test-runner exceptions added by the test action: read-only file access to `/` and three Mach service lookups |
-| Release app | `adhoc,runtime`: the hardened-runtime flag is set | Sandbox, camera, `get-task-allow` |
+No app-created files. No images, audio, coordinates, key presses or app IDs are logged. While “Share readings with the coding agent” is ticked (default on), text readings are written to the macOS log about once a second for shared testing: the guess, angles, counts, idle seconds, behavior state/reason codes, and label names. Frontmost app names and bundle identifiers are kept in memory only and never logged. No history, accounts, real OS notifications, subscriptions, updater or Codeshi integration yet.
 
-The table predates the sound signal. Afterwards the Debug app produced by the `build` action was read back with sandbox, camera, microphone and `get-task-allow`. The Release app has not been rebuilt since the direction change.
+## Gate 0 status — Approved (26 November 2026)
 
-`com.apple.security.get-task-allow` is the debugging entitlement Xcode injects into locally built products. It is not in the source file. An earlier plan to strip it from Release with `CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO` was dropped. Release is the configuration used for measurement and by the scheme's Profile action, it carries the hardened-runtime flag, and this entitlement is what Xcode relies on to attach Instruments or LLDB to a hardened process. It controls whether another process may attach to this one and is unrelated to camera consent or the sandbox, so the manual checklist is equally valid with it. That attach behaviour is Apple's documented design and was not re-tested here, with or without the entitlement.
+On 26 November 2026, after reviewing the Release benchmark (`196 MB` capture-only / `369–370 MB` all signals flat memory, `62.8 ms` p95 analysis latency), guided positive run (`86%` phone vs `0–5%` screen), negative no-phone check (`0%` false flags while typing on screen or keyboard), and lock/quit camera release checks ([results](poc-results.md)), the developer **approved Gate 0 on the signal-based path** and chose to proceed directly to **Milestone 1 (Behavioral Engine)**.
 
-To build without it, add `CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO` to the `xcodebuild` command line. This was tested: a throwaway Release build made that way was signed with sandbox and camera only and kept the `adhoc,runtime` flags. It was deleted afterwards and is not the artifact referred to elsewhere in these documents.
+Known items carried forward into Milestones 1–2 (not yet measured or optimized):
+- Capture-only CPU is `19.9%` of one core in Release (above the provisional `3–5%` target); concrete optimization path identified (`420v` native output instead of forced `32BGRA`, 15 fps hardware frame rate, drop unused `VNClassifyImageRequest` / `VNDetectHumanHandPoseRequest`).
+- Watts (`powermetrics`), 60-minute continuous stability, screen lock with background capture ticked, and live meeting-app conflicts (Zoom/FaceTime) remain to be measured before Gate 2.
 
-A distributed build should not carry a debugging entitlement. Archive/export signing belongs to Milestone 3 and has not been exercised. Neither artifact is Developer ID signed or notarized, so neither is distribution evidence.
+## Milestone 1 — Behavioral engine decisions (26 November 2026)
 
-No app-created files. No images, audio, coordinates, key presses or app IDs are logged. While “Share readings with the coding agent” is ticked (default on), text readings are written to the macOS log about once a second for shared testing: the guess, angles, counts, idle seconds and label names, including classifier and sound labels. They age out with the log. No history, accounts, notifications, subscriptions, updater or Codeshi integration. The rule-based guess is displayed only. No HTTP launch shim or web runtime is appropriate for this native diagnostics app.
+- **Baseline relearning drift fix (`ActivityEstimator`):** The 26 November 2026 negative check showed looking down at the keyboard (`+4…+7.5°` pitch, lowered eyes) while typing drifted straight-ahead pitch to `+9.8°` and eye openness from `~0.30` to `0.158`. Relearning now requires downward pitch change `≤ 5.0°` (`relearnMaxDownwardPitch`) and eye openness `≥ 80%` of baseline (`relearnMinEyeRatio`), while preserving horizontal yaw and upward pitch adaptation for normal chair shifts.
+- **Pure temporal state machine (`BehaviorEngine` + `InterventionPolicy` + `MonotonicClock`):** Implements `disabled`, `unavailable`, `paused`, `observing`, `candidate`, `sustainedPhoneUse`, and `cooldown` as pure value types with interpretable reason codes (`BehaviorReason`) and no OS dependencies.
+  - Candidate activation requires 3 of 5 valid positive samples spanning ≥2 s, where positive requires **both** away posture and ≥10 s input idle (idle alone never activates or alerts).
+  - Dropout/stale safety: missing frames or non-positive samples never add positive duration; steps above `maxStepSeconds` (1.5 s) add zero duration; gaps or unknown quality exceeding 5 s reset any active candidate; out-of-order timestamps are ignored.
+  - Multiple-people suppression: `faceCount > 1` maps to `.multiplePeople`, immediately clearing active candidates.
+- **Time dynamics for quick replies, MFA, and headphones (spec §13.2):**
+  - Episode grace period is `45 s` of corroborated away+idle duration (separate from Milestone 0's 5 s diagnostic `possiblePhoneUse` flag), absorbing short messages, MFA, and music skips even when wearing AirPods/headphones.
+  - Rolling short-pickup counter tracks completed unnotified away episodes of `≥ 15 s` within a `12-minute` rolling window; reaching `4` pickups emits a `.repeatedShortPickups` intervention and resets the counter.
+- **Foreground app & work context (`WorkContext` + `ForegroundAppMonitor`):** Observes `NSWorkspace.shared.frontmostApplication` bundle ID only (never logged). Supports `.manualWork`, `.selectedApps` (configured coding/writing bundle IDs; arbitrary browsers and terminals excluded by default), and `.inactive`. Known meeting apps (Zoom, FaceTime, Teams, Webex) suppress reminders even in `.manualWork`.
+- **Milestone 1 UI boundary:** `DiagnosticsView` displays engine state, reason codes, grace progress, rolling pickup count, a work-context mode picker, pause toggle, and an in-window dry-run reminder banner (`Back to work`, `Taking a break (5 min)` which releases the camera, and `Quick reply / Not a distraction`). Real `UNUserNotificationCenter` delivery and menu-bar settings UI remain scoped to Milestone 2.
 
-## Gate status
+## Milestone 1 — Idle-at-desk rule and extra signals (27 November 2026)
 
-Gate 0 remains **not passed** until real camera release/lifecycle, cleared phone-object recognition, initial performance, and manual evidence are available. After the direction change, phone-object recognition is no longer the path being built. Whether the signal approach replaces that requirement is for the developer to state; until then the gate stands as written. The human must review evidence and approve progression. Automated fake and geometry tests do not satisfy this gate.
+The guided behavior test of 27 Nov 2026 failed ([results](poc-results.md)): the phone was held high and the head tilted only about 4°. The posture episode kept restarting and peaked at 12.5 s of the 45 s grace. The developer asked for more than head tilt, including the idea of simply noticing that the Mac has not been used for a while, and left the design to the agent. Decisions:
+
+- **Idle-at-desk rule (`BehaviorEngine`, new reminder kind `idleAtDesk`).**
+  - The rule measures one stretch without keyboard or mouse while a single person is at the desk. The stretch starts once input has been idle for 10 s.
+  - It also measures the share of that stretch showing any sign of looking elsewhere: strong posture (down, turned or hidden) or a soft cue.
+  - It reminds once per stretch, on a sample that itself shows a cue:
+    - after **90 s** if the share is at least **50%**;
+    - after **300 s** if the share is at least **25%**.
+  - Any keyboard or mouse input ends the stretch. So do no person, several people, calibration, stale evidence and the hard gates. Acknowledging a reminder also ends it, and the existing cooldown and suppress-until-return policy still applies.
+- **Pure idle (staring at the screen with no cue) still never reminds**, however long it lasts. The developer watches builds and AI agents work without touching the Mac, so a plain "no input for N minutes" reminder would fire during normal work. This keeps spec §5.1 ("idle alone never alerts") in force.
+- **Soft cues (`ActivityEstimator`).** A soft cue is either:
+  - a downward tilt of 4–8° (`softTiltDegrees`);
+  - the face centre 0.06 of picture height lower than straight-ahead (`faceDropShare`). Straight-ahead face height is now learned and relearned along with pitch, yaw and eye openness.
+
+  Soft cues never open a posture episode on their own.
+- **Video on this Mac holds the stretch (`MacMediaMonitor`).** Another process holding a display-sleep assertion (browsers and players do while video plays) pauses accumulation. Only assertions whose label looks like media playback count ("video", "media", "play", "movie", "wake lock"). The first version counted any display-sleep assertion, and Electron apps (Codeshi, Slack, VS Code) hold one labelled "Electron" for as long as they run, so the live run of 2026-11-27 read `mac_video=on` on every frame. The label is matched in memory and never stored or logged; app names, window titles and URLs are never read.
+- **Measured but not used yet:**
+  - Phone light on the face: face-box brightness compared with whole-picture brightness. Automatic exposure may hide it.
+  - Mac audio output running: lets a later rule tell sound coming from the phone (heard by the microphone while the Mac is silent) from the Mac's own audio. It is coarse: it is also on during this app's spoken cues and with a headset.
+
+  Both are logged as `face_light`/`frame_light` and `mac_video`/`mac_audio`, so the next runs show whether they separate phone use from screen use.
+- **Rejected for now:** sound-only detection (doom-scrolling audio). In the 27 Nov run the classifier heard music and speech in every phase, including idle at the screen. With headphones there is nothing to hear.
+- **Guided behavior test:** the sustained step is now 110 s (total 198 s), so the 10 s + 90 s rule fits inside it. Step 4 asks for a touch of the mouse, as a real return to work would, so the quick reply's stretch does not carry over.
+- **Relearning cap correction:** the earlier bullet's 5.0° downward relearn limit is now 2.5° above the pitch calibrated at Start (`relearnMaxDownwardPitch`), after keyboard glances ratcheted the reference in the 26–27 Nov runs.
+- **Phone-in-picture detector: not pursued (27 Nov).** With the Mac camera the phone and hands are normally outside the frame (0 hands seen in 211 samples of the eye-level phone step), so no detector could find them. A phone held level at eye level with the head straight remains an accepted gap, caught only by the cues above (tilt, turn, slump, soft cues).
+
+## Gate 1 status
+
+**Not passed yet.** Automated deterministic fake-clock tests cover the engine rules, but scripted live episode evaluation and confusion-matrix measurement (spec §8 Milestone 1) have not been run yet.
+
+The developer chose on 27 Nov 2026 to move on to Milestone 2 without the scripted confusion-matrix evaluation, accepting the eye-level-phone gap above. Gate 1 stays formally open until that evaluation is run.
+
+## Milestone 2 — Personal alpha, first increment (27 November 2026)
+
+- **Monitoring runs from the menu bar.** `Start monitoring` is an explicit opt-in and is off at every launch. While monitoring, the camera keeps running with the diagnostics window closed or behind other apps. It never opens the microphone (spec §1.3, §13.1), and the camera preview is drawn only while the window is open. The window's own Start/Stop and its "camera only while in front" default are unchanged when monitoring is off.
+- **Menu bar icon:** off `eye.slash`, starting `eye`, monitoring `eye.fill`, paused or on break `pause.circle`, unavailable `exclamationmark.triangle` (`MonitoringStatus`, pure and unit-tested). Status text never claims phone use.
+- **Which stops keep monitoring alive:** pause (camera off until Resume), a break (camera off, restarts by itself when the break ends), and lock, sleep or screen sleep (restarts 2 s after wake, only if camera permission is already granted; it never prompts on its own). Any other stop ends monitoring and shows why in the menu, with no retry loop: permission refused, camera failure, thermal pressure. Screen wake was added as a resume trigger because a display that slept without a lock posted neither of the existing wake notifications.
+- **Real local notifications (`ReminderNotifier`)** carry the three actions `Back to work`, `Taking a break (5 min)` and `Quick reply / Not a distraction`, mapped to the existing engine actions. Opening or dismissing a notification is not feedback. Permission is asked the first time monitoring starts, never at launch. A refusal shows in the menu with a link to System Settings, without repeated prompts (spec §5.3). The in-window banner remains.
+- **Notification sound on.** The person is most likely looking at their phone, so a silent banner on the Mac would go unseen.
+- **Work-context mode is remembered** between launches (`UserDefaults`, key `workContextMode`). The default stays manual work mode.
+- **Second increment (27 Nov 2026):** first-launch welcome sheet (shown once), a Settings window (menu bar → Settings…), an editable work-app list (bundle IDs only, remembered, add from running apps or a file picker, reset to defaults), a Relaxed / Balanced / Sensitive setting, and opt-in open at login through `SMAppService`. Balanced equals the tested default rules; Relaxed and Sensitive only scale grace, cooldown, pickup count and idle-stretch timings, so the signals and the "unknown evidence never reminds" rules are unchanged. Guided checks always run on Balanced. Monitoring still never starts by itself at login.
+- **Still to do in Milestone 2:** the Gate 2 personal-use checks.
+
+### Reminder delivery for testing (27 November 2026)
+
+- Reminders can show a full-screen warning on every display with a looping sound until answered (Settings → Reminder style; default on while testing). Guided checks never show it.
+- **Quick test** sensitivity: 5 s idle corroboration, 8 s grace, 30 s cooldown, and a plain idle tier (`idleStretchPlainSeconds = 25`) that reminds after about 30 s at the desk without keyboard or mouse whatever the head does. It exists because live runs with the phone at eye level kept the face straight on (the accepted gap) and never fired. Relaxed, Balanced and Sensitive keep the plain tier off.

@@ -6,7 +6,7 @@
 #   3. signals         camera plus face, hands, body and classifier analysis
 # Both app conditions hide the live preview. The camera light is on during 2 and 3.
 #
-# Usage: scripts/measure.sh [seconds per condition] [--no-build]   (default 120)
+# Usage: scripts/measure.sh [seconds per condition] [--release] [--no-build]   (default 120)
 #
 # Reports, per app condition after a warm-up of WARMUP seconds: CPU mean / p95 / peak
 # (100% = one CPU core, Activity Monitor's convention), memory footprint first / last / peak,
@@ -19,10 +19,13 @@ cd "$ROOT"
 
 SECONDS_EACH=120
 BUILD_ARG=""
+RELEASE_ARG=""
+CONFIG=Debug
 for arg in "$@"; do
     case "$arg" in
         --no-build) BUILD_ARG="--no-build" ;;
-        ''|*[!0-9]*) echo "usage: scripts/measure.sh [seconds per condition] [--no-build]" >&2; exit 2 ;;
+        --release) RELEASE_ARG="--release"; CONFIG=Release ;;
+        ''|*[!0-9]*) echo "usage: scripts/measure.sh [seconds per condition] [--release] [--no-build]" >&2; exit 2 ;;
         *) SECONDS_EACH=$arg ;;
     esac
 done
@@ -49,7 +52,7 @@ summarise() {
 }
 
 {
-    echo "Measurement started $(date '+%Y-%m-%d %H:%M:%S'), $SECONDS_EACH s per condition, warm-up $WARMUP s, sample every $INTERVAL s"
+    echo "Measurement started $(date '+%Y-%m-%d %H:%M:%S'), config $CONFIG, $SECONDS_EACH s per condition, warm-up $WARMUP s, sample every $INTERVAL s"
     echo "Machine: $(sysctl -n machdep.cpu.brand_string), $(sysctl -n hw.ncpu) cores; power source: $(pmset -g batt | head -1 | sed "s/.*'\(.*\)'.*/\1/")"
     echo "Thermal: $(pmset -g therm 2>/dev/null | grep -i 'CPU_Speed_Limit\|warning' | tr '\n' ' ' || true)"
 } > "$OUT"
@@ -65,9 +68,9 @@ top -l "$SAMPLES" -s "$INTERVAL" -n 0 | awk -v warm="$((WARMUP / INTERVAL))" '
 
 run_condition() {
     name=$1; shift
-    echo "Condition: $name, $SECONDS_EACH s (camera on)"
+    echo "Condition: $name ($CONFIG), $SECONDS_EACH s (camera on)"
     # shellcheck disable=SC2086
-    scripts/selftest.sh "$SECONDS_EACH" --no-preview "$@" $BUILD_ARG > "build/measure-$name-selftest.txt" 2>&1 &
+    scripts/selftest.sh "$SECONDS_EACH" --no-preview "$@" $RELEASE_ARG $BUILD_ARG > "build/measure-$name-selftest.txt" 2>&1 &
     runner=$!
     pid=""
     for _ in $(seq 1 60); do

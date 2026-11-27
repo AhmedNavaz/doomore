@@ -46,7 +46,7 @@ xcodebuild -project FocusAssistant.xcodeproj -scheme FocusAssistant -configurati
 
 These tests do **not** exercise AVFoundation hardware, permission dialogs, the microphone or the sound classifier, any real face, hand or phone, real model localization, actual preview alignment, races inside the operating system, or energy. The estimator tests check the rules as written; they say nothing about whether the rules match what a person does. Model letterbox/decode/NMS tests are inapplicable until an actual model adapter is selected. No mocked phone result is presented by the app.
 
-Release build and signature read-back. **The Release app has not been rebuilt since the evening direction change.** This section describes the 20:36 build, which has neither the signal work nor the microphone entitlement:
+Release build and signature read-back. **Updated 26 Nov 2026 (19:50 PKT):** the current Release product (`build/DerivedData/Build/Products/Release/FocusAssistant.app`, built 26 Nov 02:37, newer than all Swift sources) was read back with `codesign -dv` and `codesign --display --entitlements -`: flags `adhoc,runtime` (no team identifier), entitlements `com.apple.security.app-sandbox`, `com.apple.security.device.audio-input`, `com.apple.security.device.camera`, `com.apple.security.get-task-allow`. The earlier 20:36 table below predated the microphone entitlement:
 
 ```sh
 xcodebuild -project FocusAssistant.xcodeproj -scheme FocusAssistant -configuration Release -destination 'platform=macOS,arch=arm64' -derivedDataPath build/DerivedData build
@@ -214,7 +214,7 @@ The earlier six-step checklist was written for the two-experiment window, which 
 
 ## Measurement procedure — pending, no values invented
 
-Build **Release**, let the machine settle, close the preview, and keep the diagnostics window active. Start with three matched conditions: no app, capture only, then all signals. The self-test can run both app conditions unattended (`--capture-only`, or the default), but `scripts/selftest.sh` launches the Debug build; pointing it at Release is a small change that has not been made. A full object-detector condition cannot be measured yet. Match power source, brightness, background workload and thermal conditions. Run each for at least 15 minutes after warm-up, preferably three repeats; rotate the condition order. Camera startup and warm-up are excluded from steady-state summaries but should be reported separately.
+Build **Release**, let the machine settle, close the preview, and keep the diagnostics window active. Start with three matched conditions: no app, capture only, then all signals. Both `scripts/selftest.sh` and `scripts/measure.sh` now accept `--release`. A full object-detector condition cannot be measured yet. Match power source, brightness, background workload and thermal conditions. Run each for at least 15 minutes after warm-up, preferably three repeats; rotate the condition order. Camera startup and warm-up are excluded from steady-state summaries but should be reported separately.
 
 Use Instruments Time Profiler / Allocations and available power/energy tooling. The Release build keeps Xcode's debugging entitlement so that Instruments can attach to it; attaching has not been tried yet, so record it if Instruments refuses. By default the app stops on app switches, so either tick “Keep running when I switch apps” or start delayed/background collection before returning to the window. Monitoring during ordinary background work remains unmeasured. Report that limitation prominently. Do not infer watts from CPU percentage.
 
@@ -222,9 +222,9 @@ Record mean/peak/p95 CPU (Activity Monitor convention: 100% = one logical CPU), 
 
 | Condition | CPU mean / p95 / peak | RSS / trend | Inference mean / p95 | Delivered fps / inference Hz / drops | Power / method |
 |---|---|---|---|---|---|
-| No app, matched workload | Whole system 40.4% of all 11 cores (user 25.2, sys 15.2), 26 Nov 02:10, 2 min: background load was high | N/A | N/A | N/A | Not measured |
-| Capture only, preview hidden | **Debug, first pass:** 20.5% / 23.5% / 24.8% (49 samples, 2 min) | 193 → 197 MB, peak 211 MB | N/A | 1280×720, 29.9 fps, 0 drops | Energy impact 20.6 (relative score, not watts) |
-| All signals, preview hidden | **Debug, first pass:** 29.4% / 33.0% / 37.1% (49 samples, 2 min) | 370 → 405 MB, peak 410 MB | 54.6 ms / 79.5 ms | 1280×720, 29.0 fps, 0 drops, about 2 samples/s | Energy impact 29.4 (relative score, not watts) |
+| No app, matched workload | Debug pass (02:10, 2 min): whole system 40.4% of 11 cores (user 25.2, sys 15.2). **Release pass (19:50, 2 min):** whole system 29.4% of 11 cores (user 16.0, sys 13.4) | N/A | N/A | N/A | Not measured |
+| Capture only, preview hidden | Debug (2 min): 20.5% / 23.5% / 24.8% (49 samples)<br>**Release (2 min):** 19.9% / 21.5% / 21.6% (48 samples) | Debug: 193 → 197 MB, peak 211 MB<br>**Release:** 196 → 196 MB, peak 197 MB | N/A | Debug: 1280×720, 29.9 fps, 0 drops<br>**Release:** 1280×720, 29.9 fps, 0 drops (3,593 frames, stop 139 ms) | Energy impact 20.6 (Debug) / **20.0 (Release)** (relative score, not watts) |
+| All signals, preview hidden | Debug (2 min): 29.4% / 33.0% / 37.1% (49 samples)<br>**Release (2 min):** 24.6% / 26.6% / 27.3% (48 samples) | Debug: 370 → 405 MB, peak 410 MB<br>**Release:** 369 → 370 MB, peak 375 MB | Debug: 54.6 ms / 79.5 ms<br>**Release:** 49.8 ms / 62.8 ms | Debug: 1280×720, 29.0 fps, 0 drops, ~2 Hz<br>**Release:** 1280×720, 29.9 fps, 0 drops, 232 samples (~1.93 Hz, stop 121 ms) | Energy impact 29.4 (Debug) / **24.7 (Release)** (relative score, not watts) |
 | Cleared object detector | Unavailable | Unavailable | Unavailable | Unavailable | Unavailable |
 
 After basic checks pass, run 60 minutes continuously and inspect growth, responsiveness, thermal behavior and release on quit. No stability duration has been completed. The product's 30 positive / 40 negative screening episodes, 12-hour false-reminder evaluation, precision/recall and behavioral thresholds belong after genuine localization and the later behavioral engine; none are claimed here.
@@ -241,7 +241,7 @@ After basic checks pass, run 60 minutes continuously and inspect growth, respons
 | Shared testing | Working: agent-run self-test and shared text readings. Needs the developer's Allow on the macOS prompts after each rebuild |
 | Exact detector source/terms | Unresolved; no model acquired. No longer on the path being built |
 | Real phone bounding boxes | Not implemented without a cleared model; coordinate mapping only tested synthetically |
-| Initial CPU/memory/power | First pass only (Debug, 2 min, busy machine): capture 20.5% of one core and about 195 MB; all signals 29.4% and about 400 MB. No watts. Release, 15-minute and 60-minute runs still needed |
+| Initial CPU/memory/power | Debug (2 min, busy machine) and **Release (2 min, 19:50 PKT, AC power, preview hidden)** measured. Release: capture-only **19.9% CPU / 196 MB flat**, all signals **24.6% CPU / 370 MB flat** (analysis adds ~4.7% CPU, p95 62.8 ms, 0 drops). Capture-only exceeds the provisional 3–5% target; concrete optimization path identified below (native `420v` instead of 30 fps `32BGRA` conversion, lower hardware fps, and dropping unused requests). No watts; 15-minute and 60-minute runs still needed |
 | Progression approval | Not requested; gate has not been met |
 
 Next smallest task: run the revised guided check once more to confirm the faster clearing, then a second guided run holding the phone at eye level, then non-phone activities that also lower the head (reading paper, looking at the keyboard without typing). Do not start Milestone 1 until the developer reviews sufficient Gate 0 evidence and explicitly approves progression.
@@ -289,3 +289,103 @@ One person, read from the app's log. Scored samples exclude the first 5 s of eac
 - The guess cleared about 5 s after the screen-again cue. The tilt readings stayed +11…+18° until then, so the head was probably still coming up; only 1 of 19 scored screen-again samples was flagged.
 - Straight-ahead yaw stayed between +3.0° and +4.6°, so the limit held. Pitch was relearned from +6.9° to −1.9° in the move step (the shift stayed within 10°). This made screen-again read "down" for about 3 s at tilt +10…+11°, which did not turn the guess on.
 - **Why this run was detected and run 4 was not is uncertain.** In run 5 the head tilted clearly down (+13…+20°); in run 4 it did not move. The limit fixed the reference drift, but how the phone was held probably mattered more for detection. A phone held low with only the eyes lowered (issue #4) remains undetected.
+
+## Release resource pass, 26 Nov 2026 (19:50–19:57 PKT)
+
+`scripts/measure.sh 120 --release --no-build` on the Release build (`adhoc,runtime`, built 26 Nov 02:37, matching current Swift sources), preview hidden, AC power, no thermal/performance warnings, 15 s warm-up, 2 s `top` interval.
+
+- **Capture-only (120 s):** 19.9% mean / 21.5% p95 / 21.6% peak CPU (1 logical core), **196 → 196 MB** RSS (peak 197 MB), 3,593 frames at 1280×720, 29.9 fps, 0 drops, stop 139 ms.
+- **All signals (120 s, no sound):** 24.6% mean / 26.6% p95 / 27.3% peak CPU, **369 → 370 MB** RSS (peak 375 MB), 3,601 frames at 1280×720, 29.9 fps, 0 drops, 232 samples (~1.93 Hz), analysis mean **49.8 ms** / p95 **62.8 ms**, stop 121 ms.
+- **Key findings vs Debug:**
+  - **Memory is flat in Release:** capture-only stayed at 196 MB and all-signals stayed at 369–370 MB (no growth over 2 min, unlike Debug's 370 → 405 MB).
+  - **Inference overhead is modest:** running all four Vision requests at ~2 Hz adds only **~4.7% of one logical core** over capture-only (down from ~8.9% in Debug), with p95 latency 62.8 ms (well below the 250 ms target).
+  - **Capture-only dominates CPU (~19.9% of one core), exceeding the provisional 3–5% target.** Concrete optimization path from `CameraService.swift`: (1) drop the forced `kCVPixelFormatType_32BGRA` conversion on all 30 fps frames and keep native `420v` (Vision accepts `420v` directly), (2) clamp hardware frame duration to the format's lower supported rate (15 fps on the built-in camera) or 640×480 when preview is hidden, and (3) drop the unused `VNClassifyImageRequest` / `VNDetectHumanHandPoseRequest` once signals are finalized (which should also cut the ~174 MB Vision memory footprint).
+- **Still unmeasured:** watts (`powermetrics`), 15-minute repeated runs, and 60-minute continuous stability.
+
+## False-positive check (no phone), 26 Nov 2026 (21:21–21:22 PKT)
+
+One ~59 s live run on the Release build (`preview=true`, `sounds=true`), read from `scripts/readings.sh`: 1,746 frames at 1280×720, 29.0 fps, 0 drops, 113 samples, analysis mean **50.8 ms** / p95 **66.7 ms**, stop **168 ms**.
+
+| Phase (approximate) | Behavior | `phone_guess=yes` | What happened |
+|---|---|---|---|
+| `t = 3.7–18.2 s` | Looking at screen & typing (`key = 0.0–0.4 s`) | **0 s (0%)** | Clean `facing-active` (`pitch 0.0…+6.1°`, `eye_open 0.266–0.320`). |
+| `t = 19.2–37.0 s` | Looking down at keyboard while typing (`key = 0.0–0.4 s`) | **0 s (0%)** | Active typing suppressed the phone guess throughout. Initially read `down-active` for `6.8 s` (`pitch +7.3…+10.8°`, `eye_open 0.112–0.173`, `eyes 0.39–0.58`). |
+| `t = 38.0–57.9 s` | Looking down/aside at paper/desk without typing (`key = 1.4 → 21.3 s`) | **14.1 s** (`t = 44.3–57.9 s`) | Turned `yaw −31.0…−48.2°` (`turn 33.8–51.0°`); entered `turned-idle` at `t = 42.2 s` and flagged `phone_guess=yes` at `t = 44.3 s` (`key = 7.7 s`), clearing immediately when looking back + moving pointer at `t = 58.9 s`. |
+
+Two concrete findings for Milestone 1:
+- **Keyboard-looking drifts straight-ahead relearning:** during the keyboard phase, downward tilt (`+4…+7.5°`) stayed inside `relearnMaxShift` (`10°`) while typing, so `ActivityEstimator` relearned `straight_ahead_pitch` down to `+9.8°` and `straight_ahead_eye_open` from `~0.30` down to `0.158` (`t = 25–26.6 s`). That makes subsequent head-down postures look less tilted against the baseline. Relearning should avoid adopting downward-tilted / lowered-eye samples (e.g., gate on `eyeRatio` or tighten downward pitch shift).
+- **Idle paper/desk looking triggers `phone_guess=yes`:** as expected without a phone-object detector, looking away/down at paper without keyboard/mouse input looks identical to phone use. Milestone 1 will need a realistic grace period (e.g., 45–60 s) and clear non-judgmental copy / quick-dismiss UX (or an optional phone-object detector later).
+- **Sound remains noisy:** 38 windows logged `music:26, dog:4, scuba_diving:3, lion_roar:2, speech:1, thump_thud:1, underwater_bubbling:1`.
+
+## Lifecycle check (lock & quit), 26 Nov 2026 (21:25 PKT)
+
+Verified manually on the Release build (`FocusAssistant`, PID 82755) and cross-checked with the macOS log:
+- **Lock screen (`⌃⌘Q`) & unlock:** camera stopped cleanly (`stop=117ms`, green indicator turned off and stayed off after unlock). Because background capture was not enabled in this check, the stop was triggered by window deactivation (`Window not in front — camera off`) rather than the `sessionDidResignActive` notification alone; lock-while-background-enabled remains to be tested in Milestone 1/2.
+- **Quit (`⌘Q`) while active/starting:** process exited cleanly (`FocusAssistant` no longer running) and the green camera light turned off without hanging.
+
+## Guided behavior test, 27 Nov 2026 (01:55–01:58 PKT), Debug build with the anti-ratchet relearning cap
+
+Spoken 153 s Milestone 1 test (`Guided behavior test`), read from `scripts/readings.sh`: 4,547 frames at 1280×720, 29.5 fps, 0 drops, 294 samples, analysis mean **44.1 ms** / p95 **65.5 ms**, stop **164 ms**. Face found in 294/294 samples. Straight-ahead pitch was learned at +8.2° and relearned to +9.5° by the end of the keyboard step. The cap held: it did not move again.
+
+**Result: fail.** Idle screen: pass. Keyboard: pass. Quick reply: info. Sustained phone: **fail** (no reminder).
+
+| Phase | Samples | Candidate | Max evidence | Reminders | `phone_guess` (scored) |
+|---|---:|---:|---:|---:|---:|
+| `screen-idle` (16 s) | 30 | 0 | 0 s | 0 | 0% |
+| `keyboard` (14 s) | 27 | 0 | 0 s | 0 | 0% |
+| `quick-reply` (34 s) | 66 | 19 | 9.4 s | 0 | 29% |
+| `return-screen` (12 s) | 23 | 17 (held over) | 12.9 s | 0 | 0% |
+| `sustained-phone` (65 s) | 125 | 79 | **12.5 s** | **0** | 22% |
+| `recover` (12 s) | 23 | 14 | 6.2 s | 0 | 0% |
+
+Why the sustained step failed:
+- **The head barely tilted down.** Idle samples in `sustained-phone` had tilt p25/p50/p75 = +1.8/+3.7/+5.6°. Only 5% reached the 8° `tiltDegrees` rule, and turn stayed below 12°. In the 26 Nov run 5 the same step read +13…+20°.
+- Because of that, the 8 s away share hovered around 0.25–0.75, and `awayFromScreen` flipped on and off. Each stretch of about 5 s below the 0.5 share counted as a reliable return (`idleOnlyWithoutAwayPosture`) and cleared the episode. Evidence never built past 12.5 s of the 45 s grace.
+- **Other signals moved, but not cleanly enough to use on their own.**
+  - Compared with `screen-idle`, the face sat lower in the picture (`face_y` 0.369 → 0.22–0.25; a drop of at least 0.06 in 88% of sustained samples). But it also dropped in 43% of `return-screen` samples, because the person stayed slumped.
+  - Eye outline was at or below 0.75 of baseline in 34% of samples.
+  - Head roll rose from about +3.5° to about +9°.
+  - `gaze_y` stayed flat again.
+- No false triggers: 0 candidate samples while idle at the screen or typing.
+
+**Follow-up (same night):** the idle-at-desk rule was added (see [decisions](decisions.md)). Replaying these 294 logged samples through the new estimator and engine (`GuidedBehaviorReplayTests`):
+- gives exactly one `idleAtDesk` reminder, inside `sustained-phone`, and none in the screen, keyboard or quick-reply steps;
+- the posture peak stays below 45 s;
+- the replay is not a live result.
+
+The test's sustained step is now 110 s, so a live run can check the rule without the quick reply's stretch carrying over.
+
+Earlier open question: with only a slight head tilt, the signal-based path cannot tell this phone posture from slumping at the screen. That leaves three ways forward: combine several weak signals into one score, accept the gap, or add a phone-in-frame detector.
+
+## Guided behavior test, live run (2026-11-27, 02:14–02:17)
+
+- Result: idle_screen pass, keyboard pass, quick_reply info (no reminder, correct), sustained pass.
+- One reminder at 105.4 s into the sustained-phone step (kind `sustainedEpisode`, 45.4 s of episode time, 2 pickups). Fired by the existing sustained rule, not the new away-from-Mac rule.
+- Problem: `mac_video=on` on all 213 sustained-phone frames, and `idle_stretch=0.0s` on all of them. The Mac-video pause therefore blocked the new idle timer for the whole phone step. Needs checking: is the video detection a false positive, or is it reading something unrelated?
+- Mac-video pauses also flipped the state to `observing` twice during the phone step (02:15:07, 02:16:14).
+- Face brightness (`face_light`) rose to about 0.26–0.29 during phone use against a frame of about 0.60; not yet compared with the screen-facing baseline.
+
+## Guided behavior test, live run after the video-flag fix (2026-11-27, 02:22–02:25)
+
+- Fix under test: `MacMediaMonitor` counts only display-sleep assertions whose label looks like media playback. Confirmed beforehand with `pmset -g assertions`: Dia holds `NoDisplaySleepAssertion` "Video Wake Lock" while a video plays (matches); Codeshi holds "Electron" (ignored). Safari and Chrome labels not checked.
+- `mac_video=off` on all 381 samples (no video was playing), so the away-from-Mac timer ran: `max_idle_stretch` 98.4 s with `cue_share` 0.98 in the sustained-phone step.
+- Result: idle_screen pass, keyboard pass, quick_reply info (no reminder, correct), sustained pass. One reminder at 62.3 s into the sustained-phone step (kind `sustainedEpisode`, 45.3 s episode). The head tilt was clearer this time (mean +9.7°), so the posture rule fired before the 90 s away-from-Mac rule could. The idle rule's numbers show it would have fired at about 90 s.
+- Quick reply: idle stretch peaked at 21.6 s, far below 90 s, so no early reminder from the new rule.
+- Face brightness ratio (face / whole picture): 0.48 at the screen, 0.44 during sustained phone use. The face got slightly darker, not brighter, so phone light is not a usable signal with automatic exposure in this room. Keep logging; do not use.
+- Camera: 29.4 fps, 0 drops, 49.0 ms mean / 69.8 ms p95 analysis, stop 125 ms.
+
+## Guided behavior test, eye-level phone run (2026-11-27, 02:28–02:31)
+
+- Purpose: check the away-from-Mac rule on its own, with the head held level and the phone at eye level.
+- `mac_video=off` on all 761 samples, so the video pause did not interfere.
+- Result (app's own labels): idle_screen pass, keyboard **fail**, quick_reply **fail**, sustained **fail**. Reminders: 0.
+- Phone step: `max_idle_stretch` 97.3 s, but `cue_share` 0.17 and `phone_guess` 0.00. Head tilt averaged +1.5° from the straight-ahead reference, and face-lower and eyes-lowered cues were rare. The 90 s rule needs the user to look elsewhere for at least half of that stretch, so it correctly stayed quiet.
+- Keyboard step: candidate fired (`away` 0.30, `max_evidence` 2.1 s), but no reminder followed. Quick reply: no candidate, `max_idle_stretch` 21.3 s.
+- Conclusion: the away-from-Mac rule needs the face-cue condition as well as idle time. Phone held level at eye level with the face forward is not caught by either. This is the known gap noted in decisions.md.
+
+### Keyboard-step "fail" in the eye-level run: grading, not detection
+
+- The candidate (11 samples, about 5 s, `max_evidence` 2.1 s) came in the first 4–5 s of the keyboard step, before any input: the step opened while the person was still idle from step 1 (pointer idle 15–19 s).
+- The head was tilted slightly up (−4…−6° against straight-ahead), but eye openness read 0.54–0.76 of straight-ahead, under the 0.75 eyes-lowered line: most likely a glance down at the keyboard after the spoken prompt. The first trackpad move cleared it and no reminder followed.
+- Change: the guided grader now counts candidate/sustained samples from the first key or mouse use in a phase (`away_after_input` in the `GUIDED_BEHAVIOR` line). The keyboard step fails on any reminder, any sustained state, or any candidate after input began. A candidate only before the first input is reported as **info**. Detection rules are unchanged.
+- The quick-reply "fail" in the same run was correct for that posture: phone held level, so no phone posture was seen.

@@ -36,6 +36,15 @@ struct ActivityEstimate: Sendable, Equatable {
     var eyeRatio: Double?
     /// Share of samples in the recent window that were away from the screen, 0 to 1.
     var awayShare = 0.0
+    /// A weaker sign of looking at something other than the screen, while the posture still
+    /// reads as facing: a slight downward tilt (below `Rules.tiltDegrees`) or the face sitting
+    /// lower in the picture than straight-ahead (slumping toward a phone held in the lap).
+    /// Too common on its own to drive a guess; the behaviour engine only counts it over a
+    /// long stretch without keyboard or mouse.
+    var softCue = false
+    /// How far the face centre sits below its straight-ahead height, as a share of picture
+    /// height. Positive is lower. Nil without a face or a baseline.
+    var faceDrop: Double?
 
     /// Stable name used in the shared text log.
     var key: String { "\(posture.rawValue)-\(inputActive ? "active" : "idle")" }
@@ -92,19 +101,38 @@ struct ActivityEstimator {
         /// fell from 0.22 to 0.12 and facing the screen afterwards read 12–17° turned against the
         /// position learned at Start. Zero turns relearning off.
         var relearnSeconds = 10.0
-        /// Only face samples within this many degrees (yaw and pitch) of the current straight-ahead
-        /// are used for relearning, so a head held toward a phone while a key is touched cannot drag
-        /// the reference along. In the fourth guided check (26 Nov 2026) it learned +8.6° while the head
-        /// was near +20°, and facing the screen then read as turned away (75% flagged).
+        /// Only face samples within this many degrees (yaw and upward/reclined pitch) of the current
+        /// straight-ahead are used for relearning, so a head held toward a phone while a key is touched
+        /// cannot drag the reference along. In the fourth guided check (26 Nov 2026) it learned +8.6°
+        /// while the head was near +20°, and facing the screen then read as turned away (75% flagged).
         var relearnMaxShift = 10.0
+        /// Downward pitch cap above the calibrated anchor pitch so looking down at the keyboard while
+        /// typing (+4…+10° in the 26–27 Nov 2026 checks) cannot step-by-step ratchet straight-ahead
+        /// pitch downward (which reached +7.4° during the guided behavior run).
+        var relearnMaxDownwardPitch = 2.5
+        /// Minimum eye-openness ratio (against current straight-ahead) for relearning so lowered eyes
+        /// while typing at the keyboard cannot drag straight-ahead eye openness downward (dropped from
+        /// ~0.30 to 0.158 in the 26 Nov 2026 negative check).
+        var relearnMinEyeRatio = 0.80
         /// Without a face, at least this share of the picture must be a person to count as "face hidden".
         var personCoverage = 0.05
+        /// Soft cue: downward tilt from this many degrees (up to `tiltDegrees`). In the guided behavior
+        /// test of 27 Nov 2026 the person held the phone high: sustained use read +1.8/+3.7/+5.6° (p25/p50/p75)
+        /// while idle facing the screen never exceeded +3.4°.
+        var softTiltDegrees = 4.0
+        /// Soft cue: face centre this much lower in the picture than straight-ahead (share of picture
+        /// height). The same test measured 0.36 at the screen and 0.22–0.25 on the phone (88% of samples
+        /// at least 0.06 lower), but also 43% of samples after the phone went down, because the person
+        /// stayed slumped; so it is a soft cue only.
+        var faceDropShare = 0.06
     }
 
     struct Baseline: Equatable {
         var pitch: Double?
         var yaw: Double?
         var eyeOpenness: Double?
+        /// Normalized vertical centre of the face box (0 bottom, 1 top).
+        var faceCenterY: Double? = nil
     }
 
     private struct State: Equatable {
@@ -114,12 +142,16 @@ struct ActivityEstimator {
 
     var rules = Rules()
     private(set) var baseline: Baseline?
-    private var calibration: [(head: HeadPose, eyes: Double?)] = []
+    /// Initial calibrated pitch used as the ceiling anchor for downward pitch relearning so
+    /// repeated keyboard glances cannot ratchet `baseline.pitch` downward while still allowing
+    /// reclining backward and returning upright while typing.
+    private var anchorPitch: Double?
+    private var calibration: [(head: HeadPose, eyes: Double?, faceY: Double?)] = []
     private var current: (state: State, since: Double)?
     private var pending: (state: State, since: Double)?
     private var recent: [(time: Double, away: Bool)] = []
     private var lastAway: Double?
-    private var activeFaces: [(time: Double, head: HeadPose, eyes: Double?)] = []
+    private var activeFaces: [(time: Double, head: HeadPose, eyes: Double?, faceY: Double?)] = []
 
     init(rules: Rules = Rules()) { self.rules = rules }
 
@@ -133,27 +165,41 @@ struct ActivityEstimator {
     /// Learns straight-ahead again from the next face samples, and forgets the recent window.
     mutating func recalibrate() {
         baseline = nil
+        anchorPitch = nil
         calibration.removeAll()
         recent.removeAll()
         lastAway = nil
         activeFaces.removeAll()
     }
 
-    private static func isNear(_ head: HeadPose, _ baseline: Baseline, within limit: Double) -> Bool {
-        if let yaw = head.yaw, let neutral = baseline.yaw, abs(yaw - neutral) > limit { return false }
-        if let pitch = head.pitch, let neutral = baseline.pitch, abs(pitch - neutral) > limit { return false }
+    private static func isEligibleForRelearn(_ head: HeadPose, eyes: Double?, baseline: Baseline,
+                                             anchorPitch: Double?, rules: Rules) -> Bool {
+        if let yaw = head.yaw, let neutral = baseline.yaw, abs(yaw - neutral) > rules.relearnMaxShift { return false }
+        if let pitch = head.pitch, let neutral = baseline.pitch {
+            let delta = pitch - neutral
+            if abs(delta) > rules.relearnMaxShift { return false }
+            let downwardCeiling = (anchorPitch ?? neutral) + rules.relearnMaxDownwardPitch
+            if pitch > downwardCeiling { return false }
+        }
+        if let eyes, let neutral = baseline.eyeOpenness, neutral > 0, eyes / neutral < rules.relearnMinEyeRatio {
+            return false
+        }
         return true
     }
 
     mutating func update(_ snapshot: SignalSnapshot) -> ActivityEstimate {
         let head = snapshot.vision.head
         let eyes = snapshot.vision.eyeOpenness
+        let faceY = snapshot.vision.faceCenterY
         if baseline == nil, let head {
-            calibration.append((head, eyes))
+            calibration.append((head, eyes, faceY))
             if calibration.count >= max(1, rules.calibrationSamples) {
-                baseline = Baseline(pitch: Self.median(calibration.compactMap(\.head.pitch)),
+                let calibratedPitch = Self.median(calibration.compactMap(\.head.pitch))
+                baseline = Baseline(pitch: calibratedPitch,
                                     yaw: Self.median(calibration.compactMap(\.head.yaw)),
-                                    eyeOpenness: Self.median(calibration.compactMap(\.eyes)))
+                                    eyeOpenness: Self.median(calibration.compactMap(\.eyes)),
+                                    faceCenterY: Self.median(calibration.compactMap(\.faceY)))
+                anchorPitch = calibratedPitch
                 calibration.removeAll()
             }
         }
@@ -164,22 +210,26 @@ struct ActivityEstimator {
             // last key press (when the head may already be down at a phone) never teach straight-ahead.
             let lastInput = snapshot.time - snapshot.input.any
             if let last = activeFaces.last, snapshot.time < last.time { activeFaces.removeAll() }
-            if typing, let head, let baseline, Self.isNear(head, baseline, within: rules.relearnMaxShift) {
-                activeFaces.append((snapshot.time, head, eyes))
+            if typing, let head, let baseline,
+               Self.isEligibleForRelearn(head, eyes: eyes, baseline: baseline, anchorPitch: anchorPitch, rules: rules) {
+                activeFaces.append((snapshot.time, head, eyes, faceY))
             }
             activeFaces.removeAll { $0.time < snapshot.time - rules.relearnSeconds - rules.inputActiveSeconds }
             let confirmed = activeFaces.filter { $0.time <= lastInput && $0.time >= lastInput - rules.relearnSeconds }
             if typing, confirmed.count >= max(1, rules.calibrationSamples) {
                 baseline = Baseline(pitch: Self.median(confirmed.compactMap(\.head.pitch)),
                                     yaw: Self.median(confirmed.compactMap(\.head.yaw)),
-                                    eyeOpenness: Self.median(confirmed.compactMap(\.eyes)))
+                                    eyeOpenness: Self.median(confirmed.compactMap(\.eyes)),
+                                    faceCenterY: Self.median(confirmed.compactMap(\.faceY)))
             }
         }
 
         var tilt: Double?
         var yawOff: Double?
         var eyeRatio: Double?
+        var faceDrop: Double?
         if let head, let baseline {
+            if let faceY, let neutral = baseline.faceCenterY { faceDrop = neutral - faceY }
             if let pitch = head.pitch, let neutral = baseline.pitch { tilt = pitch - neutral }
             if let yaw = head.yaw, let neutral = baseline.yaw { yawOff = abs(yaw - neutral) }
             if let eyes, let neutral = baseline.eyeOpenness, neutral > 0 { eyeRatio = eyes / neutral }
@@ -242,7 +292,10 @@ struct ActivityEstimator {
             tilt: tilt,
             yawOff: yawOff,
             eyeRatio: eyeRatio,
-            awayShare: share)
+            awayShare: share,
+            softCue: posture == .facing
+                && ((tilt ?? -.infinity) >= rules.softTiltDegrees || (faceDrop ?? -.infinity) >= rules.faceDropShare),
+            faceDrop: faceDrop)
     }
 
     static func median(_ values: [Double]) -> Double? {

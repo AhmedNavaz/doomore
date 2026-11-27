@@ -15,7 +15,7 @@ enum SharedLog {
     }
 }
 
-/// Launch arguments for an unattended timed run: `--selftest <seconds> [--sound] [--capture-only] [--guided] [--no-preview]`.
+/// Launch arguments for an unattended timed run: `--selftest <seconds> [--sound] [--capture-only] [--guided|--guided-behavior] [--no-preview]`.
 /// The app starts the camera by itself, runs for that long, logs a summary and quits, so it can
 /// be checked without anyone pressing buttons. `--guided` runs the spoken guided check instead
 /// of a fixed time (see `GuidedCheck`); the seconds are then ignored. If macOS has no stored permission for this
@@ -27,6 +27,7 @@ struct SelfTestPlan: Equatable {
     var captureOnly: Bool
     var guided = false
     var preview = true
+    var guidedSuite: GuidedCheck.Suite = .phoneSignals
 
     static let defaultSeconds = 12.0
     static let allowedSeconds = 3.0...900.0
@@ -37,12 +38,15 @@ struct SelfTestPlan: Equatable {
         if index + 1 < arguments.count, let value = Double(arguments[index + 1]), value.isFinite {
             seconds = min(max(value, allowedSeconds.lowerBound), allowedSeconds.upperBound)
         }
-        let guided = arguments.contains("--guided")
-        return SelfTestPlan(seconds: guided ? GuidedCheck.totalSeconds : seconds,
+        let guidedBehavior = arguments.contains("--guided-behavior")
+        let guided = guidedBehavior || arguments.contains("--guided")
+        let suite: GuidedCheck.Suite = guidedBehavior ? .behaviorEngine : .phoneSignals
+        return SelfTestPlan(seconds: guided ? GuidedCheck.totalSeconds(for: suite) : seconds,
                             sound: arguments.contains("--sound"),
                             captureOnly: guided ? false : arguments.contains("--capture-only"),
                             guided: guided,
-                            preview: !arguments.contains("--no-preview"))
+                            preview: !arguments.contains("--no-preview"),
+                            guidedSuite: suite)
     }
 }
 
@@ -67,7 +71,8 @@ enum ReadingText {
     /// `phase` is the guided-check phase, when one is running.
     static func line(elapsed: Double, snapshot: SignalSnapshot, estimate: ActivityEstimate,
                      sound: SoundReading?, soundStatus: SoundStatus, latencyMS: Double,
-                     phase: String? = nil) -> String {
+                     phase: String? = nil, media: MacMediaState? = nil,
+                     behavior: BehaviorSnapshot? = nil) -> String {
         let vision = snapshot.vision
         var parts = ["READING", "t=\(number(elapsed))"]
         if let phase { parts.append("phase=\(phase)") }
@@ -83,9 +88,18 @@ enum ReadingText {
         if let head = vision.head {
             parts.append("pitch=\(signed(head.pitch)) yaw=\(signed(head.yaw)) roll=\(signed(head.roll))"
                 + " eye_open=\(number(vision.eyeOpenness, 3))")
+            if vision.pupilOffset != nil || vision.faceWidth != nil || vision.faceCenterY != nil {
+                parts.append("gaze_y=\(signed(vision.pupilOffset, 3)) face_w=\(number(vision.faceWidth, 3)) face_y=\(number(vision.faceCenterY, 3))")
+            }
         }
         if estimate.tilt != nil || estimate.yawOff != nil || estimate.eyeRatio != nil {
             parts.append("tilt=\(signed(estimate.tilt)) turn=\(number(estimate.yawOff)) eyes=\(number(estimate.eyeRatio, 2))")
+        }
+        if estimate.faceDrop != nil || estimate.softCue {
+            parts.append("soft=\(estimate.softCue ? "yes" : "no") face_drop=\(signed(estimate.faceDrop, 3))")
+        }
+        if let face = vision.faceLuma, let frame = vision.frameLuma {
+            parts.append("face_light=\(number(face, 3)) frame_light=\(number(frame, 3))")
         }
         parts.append("key=\(unit(snapshot.input.keyboard, 1, "s")) ptr=\(unit(snapshot.input.pointer, 1, "s"))")
         if let first = sound?.top.first {
@@ -98,6 +112,12 @@ enum ReadingText {
             if let first = classifier.topLabels.first {
                 parts.append("top=\(first.label):\(number(Double(first.confidence), 2))")
             }
+        }
+        if let media {
+            parts.append("mac_video=\(MacMediaState.key(media.videoPlaying)) mac_audio=\(MacMediaState.key(media.audioPlaying))")
+        }
+        if let behavior {
+            parts.append("idle_stretch=\(unit(behavior.idleStretchSeconds, 1, "s")) cue_share=\(number(behavior.idleStretchCueShare, 2))")
         }
         parts.append("analysis=\(unit(latencyMS, 1, "ms"))")
         return parts.joined(separator: " ")

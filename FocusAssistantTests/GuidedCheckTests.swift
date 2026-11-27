@@ -9,6 +9,19 @@ final class GuidedCheckTests: XCTestCase {
         XCTAssertEqual(GuidedCheck.totalSeconds, 62)
     }
 
+    func testBehaviorSuitePhasesCoverIdleTypingQuickReplyAndSustainedPhone() {
+        XCTAssertEqual(
+            GuidedCheck.phases(for: .behaviorEngine).map(\.name),
+            ["screen-idle", "keyboard", "quick-reply", "return-screen", "sustained-phone", "recover"]
+        )
+        XCTAssertEqual(GuidedCheck.totalSeconds(for: .behaviorEngine), 198)
+        XCTAssertEqual(GuidedCheck.phaseIndex(at: 0, suite: .behaviorEngine), 0)
+        XCTAssertEqual(GuidedCheck.phaseIndex(at: 30, suite: .behaviorEngine), 2)
+        XCTAssertEqual(GuidedCheck.phaseIndex(at: 150, suite: .behaviorEngine), 4)
+        XCTAssertEqual(GuidedCheck.phaseIndex(at: 197.9, suite: .behaviorEngine), 5)
+        XCTAssertNil(GuidedCheck.phaseIndex(at: 198, suite: .behaviorEngine))
+    }
+
     func testPhaseIndexFollowsElapsedTime() {
         let cases: [(Double, Int?)] = [(0, 0), (11.99, 0), (12, 1), (26.9, 1), (27, 2), (46.9, 2),
                                        (47, 3), (61.9, 3), (62, nil), (-0.1, nil), (.nan, nil), (.infinity, nil)]
@@ -66,5 +79,88 @@ final class GuidedCheckTests: XCTestCase {
     func testSummaryWithoutSamplesSaysSo() {
         XCTAssertEqual(GuidedSummary().lines().last,
                        "GUIDED result settle_seconds=5 phone_guess_while_on_phone=n/a phone_guess_while_facing_screen=n/a")
+    }
+
+    func testBehaviorGuidedSummaryPassesWhenAllExpectationsMet() {
+        var summary = BehaviorGuidedSummary()
+        let snapshot = SignalSnapshot(time: 10, vision: VisionSignals(), input: InputIdle(keyboard: 20, pointer: 20))
+        let facing = ActivityEstimate(posture: .facing, inputActive: false, secondsInState: 5, possiblePhoneUse: false,
+                                      tilt: 0, yawOff: 0, eyeRatio: 1)
+        let away = ActivityEstimate(posture: .down, inputActive: false, secondsInState: 20, possiblePhoneUse: true,
+                                    tilt: 12, yawOff: 2, eyeRatio: 0.7)
+
+        func makeBehavior(state: BehaviorState, duration: Double = 0, pickups: Int = 0,
+                          reminder: InterventionEvent? = nil) -> BehaviorSnapshot {
+            BehaviorSnapshot(state: state, stateSince: 0, evidenceDuration: duration,
+                             graceProgress: min(1, duration / 45.0), recentPickupCount: pickups,
+                             episodeID: nil, reasons: [], lastUpdate: 0,
+                             pendingIntervention: reminder, cooldownRemaining: 0, breakRemaining: 0)
+        }
+
+        summary.add(phase: "screen-idle", phaseElapsed: 10, snapshot: snapshot, estimate: facing,
+                    behavior: makeBehavior(state: .observing))
+        summary.add(phase: "keyboard", phaseElapsed: 10, snapshot: snapshot, estimate: facing,
+                    behavior: makeBehavior(state: .observing))
+        summary.add(phase: "quick-reply", phaseElapsed: 28, snapshot: snapshot, estimate: away,
+                    behavior: makeBehavior(state: .candidate, duration: 18))
+        summary.add(phase: "return-screen", phaseElapsed: 8, snapshot: snapshot, estimate: facing,
+                    behavior: makeBehavior(state: .observing, pickups: 1))
+        let event = InterventionEvent(episodeID: UUID(), kind: .sustainedEpisode, timestamp: 120,
+                                      evidenceDuration: 45.5, recentPickupCount: 2,
+                                      reasons: [.awayFromScreen, .idleCorroborated, .sustainedGraceElapsed])
+        summary.add(phase: "sustained-phone", phaseElapsed: 49, snapshot: snapshot, estimate: away,
+                    behavior: makeBehavior(state: .sustainedPhoneUse, duration: 45.5, pickups: 1, reminder: event))
+        summary.add(phase: "recover", phaseElapsed: 5, snapshot: snapshot, estimate: facing,
+                    behavior: makeBehavior(state: .cooldown, pickups: 1))
+
+        let report = summary.report()
+        XCTAssertTrue(report.allPassed)
+        XCTAssertEqual(report.items.map(\.status), [.pass, .pass, .pass, .pass])
+        XCTAssertEqual(summary.lines().last,
+                       "GUIDED_BEHAVIOR result=pass idle_screen=pass keyboard=pass quick_reply=pass sustained=pass")
+    }
+
+    func testBehaviorGuidedSummaryFlagsEarlyOrMissingReminders() {
+        var summary = BehaviorGuidedSummary()
+        let snapshot = SignalSnapshot(time: 10, vision: VisionSignals(), input: InputIdle(keyboard: 20, pointer: 20))
+        let away = ActivityEstimate(posture: .down, inputActive: false, secondsInState: 20, possiblePhoneUse: true,
+                                    tilt: 12, yawOff: 2, eyeRatio: 0.7)
+        let candidate = BehaviorSnapshot(state: .candidate, stateSince: 0, evidenceDuration: 5,
+                                         graceProgress: 0.1, recentPickupCount: 0, episodeID: nil,
+                                         reasons: [], lastUpdate: 0, pendingIntervention: nil,
+                                         cooldownRemaining: 0, breakRemaining: 0)
+        summary.add(phase: "screen-idle", phaseElapsed: 12, snapshot: snapshot, estimate: away, behavior: candidate)
+        // Typing has begun in the keyboard step, so a later candidate is a real false trigger.
+        let typing = SignalSnapshot(time: 9, vision: VisionSignals(), input: InputIdle(keyboard: 0.5, pointer: 20))
+        summary.add(phase: "keyboard", phaseElapsed: 7, snapshot: typing, estimate: away, behavior: candidate)
+        summary.add(phase: "keyboard", phaseElapsed: 8, snapshot: snapshot, estimate: away, behavior: candidate)
+        summary.add(phase: "quick-reply", phaseElapsed: 20, snapshot: snapshot, estimate: away, behavior: candidate)
+        summary.add(phase: "sustained-phone", phaseElapsed: 50, snapshot: snapshot, estimate: away, behavior: candidate)
+
+        let report = summary.report()
+        XCTAssertFalse(report.allPassed)
+        XCTAssertEqual(report.items.map(\.status), [.fail, .fail, .info, .fail])
+        XCTAssertTrue(summary.lines()[1].contains(" away_after_input=2 "))
+    }
+
+    func testKeyboardCandidateBeforeFirstInputIsInfoNotFail() {
+        // 27 Nov 2026: the step opened while the person was still idle from step 1, a glance at the
+        // keyboard read as eyes lowered for about 5 s, and the first mouse move cleared it.
+        var summary = BehaviorGuidedSummary()
+        let facing = ActivityEstimate(posture: .facing, inputActive: true, secondsInState: 2, possiblePhoneUse: false,
+                                      tilt: 0, yawOff: 0, eyeRatio: 1)
+        func behavior(_ state: BehaviorState) -> BehaviorSnapshot {
+            BehaviorSnapshot(state: state, stateSince: 0, evidenceDuration: 2, graceProgress: 0.05,
+                             recentPickupCount: 0, episodeID: nil, reasons: [], lastUpdate: 0,
+                             pendingIntervention: nil, cooldownRemaining: 0, breakRemaining: 0)
+        }
+        let idle = SignalSnapshot(time: 20, vision: VisionSignals(), input: InputIdle(keyboard: 69, pointer: 19))
+        let moving = SignalSnapshot(time: 21, vision: VisionSignals(), input: InputIdle(keyboard: 70, pointer: 0))
+        summary.add(phase: "keyboard", phaseElapsed: 3.5, snapshot: idle, estimate: facing, behavior: behavior(.candidate))
+        summary.add(phase: "keyboard", phaseElapsed: 4.5, snapshot: moving, estimate: facing, behavior: behavior(.observing))
+
+        let keyboard = summary.report().items[1]
+        XCTAssertEqual(keyboard.id, "keyboard")
+        XCTAssertEqual(keyboard.status, .info)
     }
 }

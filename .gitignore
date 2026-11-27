@@ -14,3 +14,6 @@ xcuserdata/
 
 .codeshi/
 .DS_Store
+
+# Local planning document, not for publication
+behavioral-focus-app-spec.md

@@ -18,7 +18,7 @@ struct DiagnosticsView: View {
                         .foregroundStyle(model.isCapturing ? .green : .secondary)
                 }
 
-                Text("Press Start. The app watches your head position, your eyes, your hands, whether the keyboard or mouse is in use and, if ticked, the kind of sound nearby. It then shows its guess about what you are doing. A phone held below the camera cannot be seen, so the guess relies on your head or eyes being away from the screen while the keyboard and mouse are idle. Guided phone check speaks three short steps (about 47 s) so the readings can be compared; it keeps running if you switch apps and turns the camera off when it ends. Pictures and audio are never saved or uploaded. No reminders are implemented.")
+                Text("Press Start, or run a spoken Guided test. The app watches your head position, your eyes, your hands, whether the keyboard or mouse is in use and, if ticked, the kind of sound nearby. It feeds those signals into the Milestone 1 behavioral engine (45 s grace period, rolling short-pickup counter, and work-app gating). Pictures and audio are never saved or uploaded.")
                     .font(.callout)
                     .fixedSize(horizontal: false, vertical: true)
 
@@ -31,25 +31,35 @@ struct DiagnosticsView: View {
                     }.disabled(model.isRequested)
                     Button("Refresh", action: model.refreshCameras).disabled(model.isRequested)
                 }
-                HStack(spacing: 14) {
-                    Button("Start", action: model.start)
-                        .buttonStyle(.borderedProminent)
-                        .disabled(model.isRequested || model.isStopping || model.selectedCameraID.isEmpty)
-                    Button("Guided phone check", action: model.startGuidedCheck)
-                        .disabled(model.isGuiding || model.isStopping || model.selectedCameraID.isEmpty
-                                  || (model.isRequested && !model.isCapturing))
-                        .help("Starts the camera if needed and speaks four steps: look at the screen, shift position while moving the mouse, use your phone, look at the screen again. About 62 seconds. Keeps running if you switch apps.")
-                    Button("Stop") { model.stop() }.disabled(!model.isRequested)
-                    Toggle("Listen for sounds (microphone)", isOn: $model.listenForSounds).disabled(model.isRequested)
-                    Toggle("Keep running when I switch apps", isOn: $model.keepRunningInBackground)
-                }.toggleStyle(.checkbox)
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 12) {
+                        Button("Start", action: model.start)
+                            .buttonStyle(.borderedProminent)
+                            .disabled(model.isRequested || model.isStopping || model.selectedCameraID.isEmpty)
+                        Button("Guided behavior test") { model.startGuidedCheck(.behaviorEngine) }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.blue)
+                            .disabled(model.isGuiding || model.isStopping || model.selectedCameraID.isEmpty
+                                      || (model.isRequested && !model.isCapturing))
+                            .help("Speaks 6 steps (~2.5 min) to test idle screen, keyboard typing, quick reply grace, short pickup count, and the 45 s sustained phone reminder.")
+                        Button("Guided phone check") { model.startGuidedCheck(.phoneSignals) }
+                            .disabled(model.isGuiding || model.isStopping || model.selectedCameraID.isEmpty
+                                      || (model.isRequested && !model.isCapturing))
+                            .help("Starts the camera if needed and speaks four steps: look at the screen, shift position while moving the mouse, use your phone, look at the screen again. About 62 seconds.")
+                        Button("Stop") { model.wantsMonitoring ? model.stopMonitoring() : model.stop() }.disabled(!model.isRequested)
+                    }
+                    HStack(spacing: 16) {
+                        Toggle("Listen for sounds (microphone)", isOn: $model.listenForSounds).disabled(model.isRequested)
+                        Toggle("Keep running when I switch apps", isOn: $model.keepRunningInBackground)
+                    }.toggleStyle(.checkbox)
+                }
                 Text(model.status).font(.callout).accessibilityIdentifier("captureStatus")
 
                 if let instruction = model.guidedInstruction {
                     HStack(spacing: 12) {
                         Image(systemName: "speaker.wave.2.fill").font(.title2)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Guided phone check").font(.caption).foregroundStyle(.secondary)
+                            Text(model.activeGuidedSuite.title).font(.caption).foregroundStyle(.secondary)
                             Text(instruction).font(.title3.bold())
                         }
                         Spacer()
@@ -59,6 +69,16 @@ struct DiagnosticsView: View {
                     .background(.blue.opacity(0.15), in: RoundedRectangle(cornerRadius: 10))
                     .accessibilityIdentifier("guidedInstruction")
                 }
+
+                if let reminder = model.activeReminder {
+                    reminderBanner(reminder)
+                }
+
+                if let report = model.lastGuidedReport {
+                    guidedReportView(report)
+                }
+
+                behaviorView
 
                 estimateView
 
@@ -97,6 +117,147 @@ struct DiagnosticsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }.padding(24)
         }.frame(minWidth: 760, minHeight: 650)
+    }
+
+    // MARK: Guided test result
+
+    private func guidedReportView(_ report: GuidedReport) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Label(report.suite.title + " result",
+                      systemImage: report.allPassed ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
+                    .font(.headline)
+                    .foregroundStyle(report.allPassed ? .green : .orange)
+                Spacer()
+                Button("Dismiss", action: model.dismissGuidedReport).controlSize(.small)
+            }
+            ForEach(report.items) { item in
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Image(systemName: iconName(for: item.status))
+                        .foregroundStyle(color(for: item.status))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(item.title).font(.callout.weight(.semibold))
+                        Text(item.detail).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background((report.allPassed ? Color.green : Color.orange).opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
+        .accessibilityIdentifier("guidedReport")
+    }
+
+    private func iconName(for status: GuidedReport.CheckItem.Status) -> String {
+        switch status {
+        case .pass: return "checkmark.circle.fill"
+        case .fail: return "xmark.circle.fill"
+        case .info: return "info.circle.fill"
+        }
+    }
+
+    private func color(for status: GuidedReport.CheckItem.Status) -> Color {
+        switch status {
+        case .pass: return .green
+        case .fail: return .red
+        case .info: return .orange
+        }
+    }
+
+    // MARK: Behavioral engine (Milestone 1)
+
+    private func reminderBanner(_ reminder: InterventionEvent) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Image(systemName: "bell.badge.fill").font(.title2).foregroundStyle(.orange)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Gentle focus reminder (Milestone 1 in-window preview)").font(.caption).foregroundStyle(.secondary)
+                    Text(reminder.kind.headline).font(.headline)
+                }
+            }
+            HStack(spacing: 10) {
+                Button("Back to work", action: model.acknowledgeBackToWork)
+                    .buttonStyle(.borderedProminent)
+                Button("Taking a break (5 min)", action: model.takeBreak)
+                Button("Quick reply / Not a distraction", action: model.markNotADistraction)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.orange.opacity(0.14), in: RoundedRectangle(cornerRadius: 10))
+        .accessibilityIdentifier("behaviorReminderBanner")
+    }
+
+    private var behaviorView: some View {
+        let b = model.behavior
+        return GroupBox("Behavioral engine (Milestone 1)") {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text(b.state.displayName)
+                        .font(.title3.bold())
+                        .accessibilityIdentifier("behaviorState")
+                    Spacer()
+                    Picker("Work context", selection: $model.workContextMode) {
+                        ForEach(WorkContextMode.allCases) { mode in
+                            Text(mode.label).tag(mode)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(width: 170)
+                    Toggle("Pause", isOn: $model.isUserPaused).toggleStyle(.checkbox)
+                }
+
+                if !b.reasons.isEmpty {
+                    Text("Reasons: " + b.reasons.map(\.label).joined(separator: " · "))
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+
+                if b.state == .candidate || b.state == .sustainedPhoneUse {
+                    ProgressView(value: b.graceProgress) {
+                        Text("Sustained evidence: \(Self.duration(b.evidenceDuration)) / 45 s grace")
+                            .font(.caption.monospacedDigit())
+                    }
+                }
+
+                if b.idleStretchSeconds > 0 {
+                    ProgressView(value: min(1, b.idleStretchSeconds / 90)) {
+                        Text("No keyboard or mouse: \(Self.duration(b.idleStretchSeconds)) / 90 s · looking elsewhere \(Int((b.idleStretchCueShare * 100).rounded()))% / 50%")
+                            .font(.caption.monospacedDigit())
+                    }
+                }
+
+                HStack(spacing: 18) {
+                    Text("Short pickups (12 min): \(b.recentPickupCount) / 4")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                    if b.cooldownRemaining > 0 {
+                        Text("Cooldown: \(Self.duration(b.cooldownRemaining))")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                    if b.breakRemaining > 0 {
+                        Text("Break: \(Self.duration(b.breakRemaining))")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.orange)
+                        Button("End break", action: model.endBreakEarly).controlSize(.small)
+                    }
+                    Spacer()
+                    Text(frontmostSummary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }.frame(maxWidth: .infinity, alignment: .leading).padding(6)
+        }
+    }
+
+    private var frontmostSummary: String {
+        let app = model.frontmostAppName.isEmpty ? "Unknown app" : model.frontmostAppName
+        if model.frontmostIsMeetingApp { return "Frontmost: \(app) (meeting suppressor)" }
+        if model.workContextMode == .selectedApps {
+            return "Frontmost: \(app) (\(model.frontmostIsWorkApp ? "work app" : "non-work"))"
+        }
+        return "Frontmost: \(app)"
     }
 
     // MARK: The guess

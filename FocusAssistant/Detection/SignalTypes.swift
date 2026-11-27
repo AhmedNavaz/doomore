@@ -38,6 +38,19 @@ struct VisionSignals: Sendable, Equatable {
     /// a phone against 0.31–0.33 looking at the screen in two screenshots (25 Nov 2026). Nil
     /// without a face or eye landmarks.
     var eyeOpenness: Double?
+    /// Vertical offset of the pupils relative to the line between the eye corners, divided by
+    /// eye corner-to-corner width and averaged over both eyes. Positive is above the corner line,
+    /// negative is below (looking down). Roll- and scale-invariant. Logged for tuning before use.
+    var pupilOffset: Double?
+    /// Normalized width (0 to 1) of the largest face's bounding box; shrinks when leaning back.
+    var faceWidth: Double?
+    /// Normalized vertical center (0 = bottom, 1 = top) of the largest face's bounding box.
+    var faceCenterY: Double?
+    /// Mean brightness (0 to 1) inside the largest face's box, and of the whole picture. A phone
+    /// screen lights the face from below; the ratio of the two is logged to see whether that is
+    /// measurable through the camera's automatic exposure. Not used by any rule yet.
+    var faceLuma: Double?
+    var frameLuma: Double?
     /// Fraction of the picture (0 to 1) that the person-segmentation model marks as a person.
     /// It separates "left the desk" from "face hidden". The upper-body detector tried first
     /// found nobody in 23 of 23 live samples while a face was found in 22 (25 Nov 2026).

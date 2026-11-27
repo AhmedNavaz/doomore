@@ -221,6 +221,52 @@ final class ActivityEstimatorTests: XCTestCase {
         XCTAssertEqual(estimator.baseline?.yaw, 0)
     }
 
+    func testLookingDownAtKeyboardWhileTypingDoesNotDriftBaseline() {
+        // 26 Nov 2026 negative check: looking down at the keyboard (+6° pitch, lowered eyes) while
+        // typing previously dragged straight-ahead pitch to +9.8° and eye openness to 0.158.
+        var estimator = calibrated(pitch: 2.0, yaw: 0, eyes: 0.30)
+        _ = feed(&estimator, from: 3.0, through: 18.0) {
+            self.sample($0, pitch: 8.5, yaw: 0, eyes: 0.17, keyboardIdle: 0.2)
+        }
+        XCTAssertEqual(estimator.baseline?.pitch ?? .nan, 2.0, accuracy: 0.0001)
+        XCTAssertEqual(estimator.baseline?.eyeOpenness ?? .nan, 0.30, accuracy: 0.0001)
+    }
+
+    func testLoweredEyesWithSmallPitchShiftWhileTypingDoesNotDriftEyeBaseline() {
+        // Even if pitch shifts only +2° (under relearnMaxDownwardPitch), lowered eyes (<80%) must not relearn.
+        var estimator = calibrated(pitch: 2.0, yaw: 0, eyes: 0.30)
+        _ = feed(&estimator, from: 3.0, through: 15.0) {
+            self.sample($0, pitch: 4.0, yaw: 0, eyes: 0.18, keyboardIdle: 0.2)
+        }
+        XCTAssertEqual(estimator.baseline?.pitch ?? .nan, 2.0, accuracy: 0.0001)
+        XCTAssertEqual(estimator.baseline?.eyeOpenness ?? .nan, 0.30, accuracy: 0.0001)
+    }
+
+    func testKeyboardGlancesCannotRatchetBaselinePitchDownward() {
+        // Repeated small downward steps while typing/moving mouse must stay capped against the calibrated
+        // anchor pitch instead of ratcheting upward step-by-step.
+        var estimator = calibrated(pitch: 3.0, yaw: 0, eyes: 0.26)
+        _ = feed(&estimator, from: 3.0, through: 10.0) { self.sample($0, pitch: 5.0, yaw: 0, eyes: 0.25, keyboardIdle: 0.2) }
+        _ = feed(&estimator, from: 10.5, through: 18.0) { self.sample($0, pitch: 7.0, yaw: 0, eyes: 0.25, keyboardIdle: 0.2) }
+        _ = feed(&estimator, from: 18.5, through: 26.0) { self.sample($0, pitch: 9.0, yaw: 0, eyes: 0.25, keyboardIdle: 0.2) }
+        XCTAssertLessThanOrEqual(estimator.baseline?.pitch ?? .infinity, 5.5)
+    }
+
+    func testLeaningBackAndReturningUprightWhileTypingRelearnsPitch() {
+        // Leaning back on the chair tilts pitch negative; returning upright should relearn back to neutral.
+        var estimator = calibrated(pitch: 3.0, yaw: 0, eyes: 0.26)
+        _ = feed(&estimator, from: 3.0, through: 14.0) { self.sample($0, pitch: -4.0, yaw: 0, eyes: 0.27, pointerIdle: 0.2) }
+        XCTAssertEqual(estimator.baseline?.pitch ?? .nan, -4.0, accuracy: 0.0001)
+
+        // While leaned back, tilting forward to +4.5° is +8.5° relative to -4.0° and counts as down.
+        let phone = feed(&estimator, from: 14.5, through: 16.0) { self.sample($0, pitch: 4.5, yaw: 0, eyes: 0.24) }
+        XCTAssertEqual(phone.last?.posture, .down)
+
+        // Sitting upright again while typing relearns back to +3.0°.
+        _ = feed(&estimator, from: 16.5, through: 28.0) { self.sample($0, pitch: 3.0, yaw: 0, eyes: 0.26, keyboardIdle: 0.2) }
+        XCTAssertEqual(estimator.baseline?.pitch ?? .nan, 3.0, accuracy: 0.0001)
+    }
+
     func testSecondsJustAfterTypingDoNotTeachStraightAhead() {
         // Typing stops at 3.0 s and the head turns at once; input still reads "active" until 6.0 s.
         var estimator = calibrated(yaw: 0)
@@ -296,5 +342,38 @@ final class ActivityEstimatorTests: XCTestCase {
         XCTAssertEqual(pose.yaw ?? .nan, -90, accuracy: 0.0001)
         XCTAssertNil(pose.roll)
         XCTAssertNil(HeadPose(radiansPitch: nil, yaw: nil, roll: nil).pitch)
+    }
+
+    // MARK: Soft cues (27 Nov 2026)
+
+    private func faceSample(_ time: Double, pitch: Double, faceY: Double, idle: Double = 60) -> SignalSnapshot {
+        var snapshot = sample(time, pitch: pitch, eyes: 0.3, keyboardIdle: idle, pointerIdle: idle)
+        snapshot.vision.faceCenterY = faceY
+        return snapshot
+    }
+
+    func testSlightTiltOrLowerFaceIsASoftCueButNotAway() {
+        var estimator = ActivityEstimator()
+        for step in 0..<6 { _ = estimator.update(faceSample(Double(step) * 0.5, pitch: 5, faceY: 0.36)) }
+        XCTAssertEqual(estimator.baseline?.faceCenterY ?? .nan, 0.36, accuracy: 0.0001)
+
+        let straight = estimator.update(faceSample(3.0, pitch: 6, faceY: 0.35))
+        XCTAssertEqual(straight.posture, .facing)
+        XCTAssertFalse(straight.softCue, "1° tilt and a 0.01 drop are noise")
+
+        let slightTilt = estimator.update(faceSample(3.5, pitch: 10, faceY: 0.35))
+        XCTAssertEqual(slightTilt.posture, .facing, "5° is below the 8° tilt rule")
+        XCTAssertTrue(slightTilt.softCue)
+
+        let slumped = estimator.update(faceSample(4.0, pitch: 6, faceY: 0.24))
+        XCTAssertEqual(slumped.posture, .facing)
+        XCTAssertEqual(slumped.faceDrop ?? .nan, 0.12, accuracy: 0.0001)
+        XCTAssertTrue(slumped.softCue)
+
+        let down = estimator.update(faceSample(4.5, pitch: 20, faceY: 0.24))
+        _ = down
+        let held = estimator.update(faceSample(5.0, pitch: 20, faceY: 0.24))
+        XCTAssertEqual(held.posture, .down)
+        XCTAssertFalse(held.softCue, "a strong cue is reported as posture, not as a soft cue")
     }
 }

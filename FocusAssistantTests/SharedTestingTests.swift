@@ -22,6 +22,13 @@ final class SharedTestingTests: XCTestCase {
                        SelfTestPlan(seconds: GuidedCheck.totalSeconds, sound: true, captureOnly: false, guided: true))
     }
 
+    func testGuidedBehaviorSelfTestSelectsBehaviorSuite() {
+        XCTAssertEqual(SelfTestPlan.parse(["app", "--selftest", "5", "--guided-behavior"]),
+                       SelfTestPlan(seconds: GuidedCheck.totalSeconds(for: .behaviorEngine),
+                                    sound: false, captureOnly: false, guided: true,
+                                    preview: true, guidedSuite: .behaviorEngine))
+    }
+
     func testNoPreviewOptionHidesThePicture() {
         XCTAssertEqual(SelfTestPlan.parse(["app", "--selftest", "60", "--no-preview"])?.preview, false)
         XCTAssertEqual(SelfTestPlan.parse(["app", "--selftest", "60"])?.preview, true)
@@ -54,6 +61,9 @@ final class SharedTestingTests: XCTestCase {
         vision.handCount = 2
         vision.head = HeadPose(pitch: 31.24, yaw: -4.1, roll: 1)
         vision.eyeOpenness = 0.2114
+        vision.pupilOffset = -0.0426
+        vision.faceWidth = 0.1844
+        vision.faceCenterY = 0.5612
         vision.classifier = ClassifierReading.summarize([
             Classification(label: "adult", confidence: 0.934),
             Classification(label: "phone", confidence: 0.0293)
@@ -68,7 +78,8 @@ final class SharedTestingTests: XCTestCase {
 
         XCTAssertEqual(line, "READING t=12.5 phase=phone state=down-idle for=6.5s phone_guess=yes away_share=0.63"
             + " face=1 person=0.42 hands=2"
-            + " pitch=+31.2 yaw=-4.1 roll=+1.0 eye_open=0.211 tilt=-19.8 turn=4.1 eyes=0.68"
+            + " pitch=+31.2 yaw=-4.1 roll=+1.0 eye_open=0.211 gaze_y=-0.043 face_w=0.184 face_y=0.561"
+            + " tilt=-19.8 turn=4.1 eyes=0.68"
             + " key=14.2s ptr=9.8s sound=speech:0.82 phone=0.0293 top=adult:0.93 analysis=41.3ms")
     }
 
