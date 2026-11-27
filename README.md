@@ -4,16 +4,11 @@
 
 <h3>Catch the "quick look" at your phone before it eats your hour.</h3>
 
-<p>A private Mac menu bar app that notices when you drift away from your work<br>and gives you a push to come back. Everything runs on your Mac.</p>
+<p>A free, open-source focus app for Mac that notices when you drift to your phone<br>and gives you a push to come back. Private by design: everything runs on your Mac.</p>
 
-[![Download](https://img.shields.io/github/v/release/AhmedNavaz/doomore?label=download&color=2ea44f&style=for-the-badge)](https://github.com/AhmedNavaz/doomore/releases/latest)
+[![Download](https://img.shields.io/github/v/release/AhmedNavaz/doomore?label=download&color=2ea44f&style=for-the-badge)](https://github.com/AhmedNavaz/doomore/releases/latest) [![CI](https://github.com/AhmedNavaz/doomore/actions/workflows/ci.yml/badge.svg)](https://github.com/AhmedNavaz/doomore/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) ![Platform: macOS 14+](https://img.shields.io/badge/platform-macOS%2014%2B-lightgray) ![Status: experimental](https://img.shields.io/badge/status-experimental-orange)
 
-[![CI](https://github.com/AhmedNavaz/doomore/actions/workflows/ci.yml/badge.svg)](https://github.com/AhmedNavaz/doomore/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-![Platform: macOS 14+](https://img.shields.io/badge/platform-macOS%2014%2B-lightgray)
-![Status: experimental](https://img.shields.io/badge/status-experimental-orange)
-
-[Download](https://github.com/AhmedNavaz/doomore/releases/latest) · [Features](#what-you-get) · [Privacy](#privacy) · [For developers](#for-developers) · [Contribute](#contributing)
+[Website](https://ahmednavaz.github.io/doomore/) · [Download](https://github.com/AhmedNavaz/doomore/releases/latest) · [Features](#what-you-get) · [Privacy](#privacy) · [For developers](#for-developers) · [Contribute](#contributing)
 
 </div>
 
@@ -53,6 +48,26 @@ Picking up your phone "for a second" is how an hour disappears. Blockers on the 
 4. Choose **Start monitoring** from the menu bar icon and allow camera and notification access.
 
 Requires an Apple silicon Mac. The deployment target is macOS 14, but it has only been run on macOS 27 so far. macOS asks for camera access again after you replace the app with a new build, because an ad-hoc signature has no stable identity.
+
+## FAQ
+
+**What is Doomore?**
+Doomore is a free, open-source macOS menu bar app that detects when you look away from your work, for example to check your phone, and reminds you to get back to it. It runs entirely on your Mac.
+
+**Does Doomore read my camera feed or send it anywhere?**
+No. Frames are analyzed on the Mac in memory and never saved or uploaded. See [Privacy](#privacy).
+
+**Does it block apps or websites?**
+No. Strict mode can hide other windows so you can see the warning, but it never closes an app.
+
+**Is it free?**
+Yes. It is MIT licensed. See [License](#license).
+
+**Which Macs are supported?**
+Apple silicon Macs running macOS 14 or later. It has so far been tested only on macOS 27.
+
+**Is it a phone detector?**
+Not directly. Doomore infers distraction from head position, hands in view, and keyboard and mouse idle time. It does not see the phone itself, so it can miss a phone held level at eye height.
 
 ## Privacy
 
@@ -169,7 +184,7 @@ FocusAssistant/
   Intervention/  notifications and the full-screen warning
 FocusAssistantTests/   unit and replay tests
 Configuration/         Info.plist and entitlements
-docs/                  decisions, results, model evidence
+docs/                  decisions, results, model evidence; index.html is the website
 scripts/               live test and measurement scripts
 ```
 

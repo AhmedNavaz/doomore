@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Doomore: a free, private Mac app that stops phone distraction while you work</title>
+<meta name="description" content="Doomore is a free, open-source macOS menu bar app that notices when you look away from your work to check your phone and nudges you back. Everything runs on your Mac. No images saved, nothing uploaded.">
+<link rel="canonical" href="https://ahmednavaz.github.io/doomore/">
+<meta name="theme-color" content="#111418">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Doomore">
+<meta property="og:title" content="Doomore: catch the quick look at your phone before it eats your hour">
+<meta property="og:description" content="A free, private Mac menu bar app that notices when you drift to your phone and gives you a push to come back.">
+<meta property="og:url" content="https://ahmednavaz.github.io/doomore/">
+<meta property="og:image" content="https://ahmednavaz.github.io/doomore/images/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Doomore's full-screen Phone down warning next to its Settings window">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Doomore: stop phone distraction on your Mac">
+<meta name="twitter:description" content="Free, open-source, private. Notices when you drift to your phone and nudges you back to work.">
+<meta name="twitter:image" content="https://ahmednavaz.github.io/doomore/images/og.png">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Doomore",
+  "description": "A free, open-source macOS menu bar app that notices when you look away from your work, for example to check your phone, and reminds you to get back to it. It runs entirely on your Mac.",
+  "applicationCategory": "ProductivityApplication",
+  "operatingSystem": "macOS 14 or later (Apple silicon)",
+  "softwareVersion": "0.2.0",
+  "license": "https://opensource.org/licenses/MIT",
+  "url": "https://ahmednavaz.github.io/doomore/",
+  "downloadUrl": "https://github.com/AhmedNavaz/doomore/releases/latest",
+  "codeRepository": "https://github.com/AhmedNavaz/doomore",
+  "screenshot": "https://ahmednavaz.github.io/doomore/images/hero.png",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "author": { "@type": "Person", "name": "Ahmed Nawaz", "url": "https://github.com/AhmedNavaz" }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    { "@type": "Question", "name": "What is Doomore?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Doomore is a free, open-source macOS menu bar app that detects when you look away from your work, for example to check your phone, and reminds you to get back to it. It runs entirely on your Mac." } },
+    { "@type": "Question", "name": "Does Doomore save or upload my camera feed?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No. Frames are analyzed in memory on your Mac, two per second, and discarded. The app has no network code, analytics or accounts." } },
+    { "@type": "Question", "name": "Does Doomore block apps or websites?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No. Strict mode can hide other apps while the warning is up, but it never closes them, so no unsaved work is lost." } },
+    { "@type": "Question", "name": "Does Doomore detect the phone itself?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Not directly. It infers distraction from head position, hands in view, and keyboard and mouse idle time, so it can miss a phone held level at eye height." } },
+    { "@type": "Question", "name": "Which Macs does Doomore support?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Apple silicon Macs running macOS 14 or later. It has so far been tested only on macOS 27." } }
+  ]
+}
+</script>
+
+<style>
+  :root { --bg:#111418; --panel:#1a1e24; --text:#e8eaed; --muted:#9aa0a6; --red:#d64535; --red-dark:#8c2128; --line:#2a2f37; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:17px/1.6 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing:antialiased; }
+  a { color:inherit; }
+  .wrap { max-width:1080px; margin:0 auto; padding:0 24px; }
+  nav { display:flex; justify-content:space-between; align-items:center; padding:20px 0; }
+  nav .brand { font-weight:700; font-size:19px; text-decoration:none; }
+  nav .links a { color:var(--muted); text-decoration:none; margin-left:22px; font-size:15px; }
+  nav .links a:hover { color:var(--text); }
+  header { text-align:center; padding:56px 0 40px; }
+  h1 { font-size:clamp(34px, 6vw, 60px); line-height:1.08; letter-spacing:-0.02em; margin:0 auto 18px; max-width:820px; }
+  h1 em { font-style:normal; color:var(--red); }
+  .lede { color:var(--muted); font-size:clamp(17px, 2.2vw, 20px); max-width:640px; margin:0 auto 32px; }
+  .cta { display:inline-flex; gap:12px; flex-wrap:wrap; justify-content:center; }
+  .btn { display:inline-block; padding:13px 24px; border-radius:999px; font-weight:600; text-decoration:none; font-size:16px; }
+  .btn.primary { background:linear-gradient(135deg, var(--red-dark), var(--red)); color:#fff; }
+  .btn.ghost { border:1px solid var(--line); color:var(--text); }
+  .btn:hover { filter:brightness(1.1); }
+  .meta { color:var(--muted); font-size:14px; margin-top:14px; }
+  .hero img { width:100%; height:auto; border-radius:14px; display:block; box-shadow:0 30px 80px rgba(0,0,0,.45); }
+  section { padding:72px 0 0; }
+  h2 { font-size:clamp(26px, 3.5vw, 36px); letter-spacing:-0.01em; margin:0 0 28px; text-align:center; }
+  .steps, .grid { display:grid; gap:16px; }
+  .steps { grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); }
+  .grid { grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:22px; }
+  .card h3 { margin:0 0 8px; font-size:17px; }
+  .card p { margin:0; color:var(--muted); font-size:15.5px; }
+  .num { display:inline-block; width:28px; height:28px; border-radius:50%; background:var(--red); color:#fff; text-align:center; line-height:28px; font-weight:700; font-size:14px; margin-bottom:12px; }
+  .privacy { max-width:760px; margin:0 auto; }
+  .privacy li { margin:10px 0; color:var(--muted); }
+  .privacy li strong { color:var(--text); }
+  details { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px 20px; margin:10px auto; max-width:760px; }
+  summary { cursor:pointer; font-weight:600; }
+  details p { color:var(--muted); margin:10px 0 0; }
+  ol.install { max-width:760px; margin:0 auto; color:var(--muted); }
+  ol.install li { margin:10px 0; }
+  ol.install strong { color:var(--text); }
+  .final { text-align:center; padding:80px 0; }
+  footer { border-top:1px solid var(--line); color:var(--muted); font-size:14px; padding:24px 0 40px; text-align:center; }
+  footer a { color:var(--muted); margin:0 10px; }
+  @media (max-width:600px) { nav .links a:not(:last-child) { display:none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <a class="brand" href="./">Doomore</a>
+    <div class="links">
+      <a href="#features">Features</a>
+      <a href="#privacy">Privacy</a>
+      <a href="#faq">FAQ</a>
+      <a href="https://github.com/AhmedNavaz/doomore">GitHub</a>
+    </div>
+  </nav>
+
+  <header>
+    <h1>Catch the “quick look” at your phone <em>before it eats your hour.</em></h1>
+    <p class="lede">Doomore is a free, open-source Mac menu bar app that notices when you drift from your work to your phone, and gives you a push to come back. Everything runs on your Mac.</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/AhmedNavaz/doomore/releases/latest">Download for Mac</a>
+      <a class="btn ghost" href="https://github.com/AhmedNavaz/doomore">View on GitHub</a>
+    </div>
+    <p class="meta">Version 0.2.0 · macOS 14+ · Apple silicon · MIT license · Experimental</p>
+  </header>
+
+  <div class="hero">
+    <img src="images/hero.png" width="1800" height="773" alt="Doomore's full-screen Phone down warning next to its Settings window">
+  </div>
+
+  <section id="how">
+    <h2>How it feels</h2>
+    <div class="steps">
+      <div class="card"><span class="num">1</span><h3>Press Start</h3><p>Start from the menu bar when you sit down. Nothing runs before that.</p></div>
+      <div class="card"><span class="num">2</span><h3>Work</h3><p>Doomore stays out of the way. Calls, videos and breaks are left alone.</p></div>
+      <div class="card"><span class="num">3</span><h3>Drift</h3><p>Head down or turned, hands off the keys, mouse still, for long enough to matter.</p></div>
+      <div class="card"><span class="num">4</span><h3>Come back</h3><p>A quiet nudge or a full-screen warning, depending on how strict you want it.</p></div>
+    </div>
+  </section>
+
+  <section id="features">
+    <h2>What you get</h2>
+    <div class="grid">
+      <div class="card"><h3>Lives in the menu bar</h3><p>Start when you sit down. It never starts by itself.</p></div>
+      <div class="card"><h3>Notices the drift</h3><p>Head, hands, keyboard and mouse, all together and sustained. Never one signal alone.</p></div>
+      <div class="card"><h3>Three intensities</h3><p>Gentle (quiet notification), Standard, and Strict (full-screen warning with a looping sound).</p></div>
+      <div class="card"><h3>Breaks the habit on purpose</h3><p>Wait 15 seconds, solve a math problem, type a commitment, or stand up and stretch before the warning lets go.</p></div>
+      <div class="card"><h3>Knows when to stay quiet</h3><p>Pauses during video calls. Limit it to your work apps, take a 5 minute break, or pause.</p></div>
+      <div class="card"><h3>Learns from you</h3><p>Say “Not a distraction” three times in a row and it becomes one step less sensitive.</p></div>
+    </div>
+  </section>
+
+  <section id="privacy">
+    <h2>Private by design</h2>
+    <ul class="privacy">
+      <li><strong>No images saved or uploaded.</strong> Camera frames are analyzed in memory, two per second, and discarded.</li>
+      <li><strong>Nothing leaves your Mac.</strong> No network code, analytics or accounts.</li>
+      <li><strong>No microphone</strong> while monitoring.</li>
+      <li><strong>No keystrokes or screen content.</strong> It only reads how long ago you last typed or moved the mouse, and which app is in front.</li>
+      <li><strong>Two permissions:</strong> camera and notifications. No screen recording, accessibility or input monitoring.</li>
+      <li><strong>Apple's built-in Vision models only.</strong> Nothing is downloaded or bundled.</li>
+    </ul>
+  </section>
+
+  <section id="install">
+    <h2>Install</h2>
+    <ol class="install">
+      <li>Download the zip from the <a href="https://github.com/AhmedNavaz/doomore/releases/latest">latest release</a> and unzip it.</li>
+      <li>Move <strong>FocusAssistant</strong> to Applications.</li>
+      <li>The app is not notarized yet, so macOS blocks the first open. <strong>Right-click the app, choose Open</strong>, then confirm.</li>
+      <li>Choose <strong>Start monitoring</strong> from the menu bar icon and allow camera and notification access.</li>
+    </ol>
+  </section>
+
+  <section id="faq">
+    <h2>Questions</h2>
+    <details><summary>What is Doomore?</summary><p>A free, open-source macOS menu bar app that detects when you look away from your work, for example to check your phone, and reminds you to get back to it. It runs entirely on your Mac.</p></details>
+    <details><summary>Does it block apps or websites?</summary><p>No. Strict mode can hide other apps while the warning is up, but it never closes them, so no unsaved work is lost.</p></details>
+    <details><summary>Does it detect the phone itself?</summary><p>Not directly. It infers distraction from head position, hands in view, and keyboard and mouse idle time, so it can miss a phone held level at eye height.</p></details>
+    <details><summary>Is it free?</summary><p>Yes. Doomore is MIT licensed and the source is on <a href="https://github.com/AhmedNavaz/doomore">GitHub</a>.</p></details>
+    <details><summary>Which Macs are supported?</summary><p>Apple silicon Macs running macOS 14 or later. It has so far been tested only on macOS 27.</p></details>
+  </section>
+
+  <div class="final">
+    <h2>Get your hour back.</h2>
+    <a class="btn primary" href="https://github.com/AhmedNavaz/doomore/releases/latest">Download Doomore</a>
+  </div>
+</div>
+
+<footer>
+  <a href="https://github.com/AhmedNavaz/doomore">GitHub</a>
+  <a href="https://github.com/AhmedNavaz/doomore/blob/main/SECURITY.md">Security</a>
+  <a href="https://github.com/AhmedNavaz/doomore/blob/main/LICENSE">MIT License</a>
+  <a href="llms.txt">llms.txt</a>
+</footer>
+</body>
+</html>

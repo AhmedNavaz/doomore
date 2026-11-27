@@ -1,0 +1,20 @@
+# Doomore
+
+> Doomore is a free, open-source, local-only macOS menu bar app (Swift, SwiftUI, Apple Vision) that guesses when you have looked away from your work, such as checking your phone, and sends a gentle or full-screen reminder to get back to work. It runs entirely on the Mac, saves no camera frames, and sends nothing over the network. Status: experimental. License: MIT.
+
+## Key facts
+
+- Platform: macOS 14 or later, Apple silicon. Tested so far on macOS 27.
+- Signals: head position, hands in view, keyboard and mouse idle time, front app, and whether a call or video is playing. It does not directly detect a phone. The microphone is never used while monitoring.
+- Intensities: Gentle, Standard, Strict.
+- Dismissal: wait 15 seconds, solve a math problem, type a commitment, or stand up and stretch.
+- Learning: "Not a distraction" makes detection less sensitive after repeated use.
+- Distribution: GitHub releases, ad-hoc signed, not notarized.
+
+## Docs
+
+- [Website](https://ahmednavaz.github.io/doomore/): product landing page
+- [README](https://github.com/AhmedNavaz/doomore/blob/main/README.md): product overview, install, FAQ
+- [Latest release](https://github.com/AhmedNavaz/doomore/releases/latest): download
+- [Architecture decisions](https://github.com/AhmedNavaz/doomore/blob/main/docs/decisions.md)
+- [Security policy](https://github.com/AhmedNavaz/doomore/blob/main/SECURITY.md)
