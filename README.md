@@ -1,35 +1,51 @@
 <div align="center">
 
-# Doomore
+<h1>Doomore</h1>
 
-**A Mac menu bar app that notices when you drift to your phone, and nudges you back to work.**
+<h3>Catch the "quick look" at your phone before it eats your hour.</h3>
 
-Private by design. Everything runs on your Mac. No pictures, audio or keystrokes are saved or sent anywhere.
+<p>A private Mac menu bar app that notices when you drift away from your work<br>and gives you a push to come back. Everything runs on your Mac.</p>
 
-[![Download](https://img.shields.io/github/v/release/AhmedNavaz/doomore?label=download&color=2ea44f)](https://github.com/AhmedNavaz/doomore/releases/latest)
+[![Download](https://img.shields.io/github/v/release/AhmedNavaz/doomore?label=download&color=2ea44f&style=for-the-badge)](https://github.com/AhmedNavaz/doomore/releases/latest)
+
 [![CI](https://github.com/AhmedNavaz/doomore/actions/workflows/ci.yml/badge.svg)](https://github.com/AhmedNavaz/doomore/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Platform: macOS 14+](https://img.shields.io/badge/platform-macOS%2014%2B-lightgray)
 ![Status: experimental](https://img.shields.io/badge/status-experimental-orange)
 
-[**Download for Mac**](https://github.com/AhmedNavaz/doomore/releases/latest) · [How it works](#how-it-works) · [Contribute](#contributing)
+[Download](https://github.com/AhmedNavaz/doomore/releases/latest) · [Features](#what-you-get) · [Privacy](#privacy) · [For developers](#for-developers) · [Contribute](#contributing)
 
 </div>
 
-![Doomore flagging possible phone use while the keyboard and mouse are idle and the head is turned away from the screen.](docs/images/app-phone-flag.png)
+---
+
+<div align="center">
+<img src="docs/images/warning.png" alt="Doomore's full-screen warning: Phone down, with a motivational line and three buttons" width="760">
+<br><br>
+<img src="docs/images/settings.png" alt="Doomore settings: Gentle, Standard and Strict intensity, delivery and dismiss options" width="380">
+</div>
+
+## How it feels
+
+1. **You sit down and press Start** in the menu bar. Nothing runs before that.
+2. **You work.** Doomore stays out of the way. Calls, videos and breaks are left alone.
+3. **You drift.** Head down or turned, hands off the keys, mouse still, for long enough to matter.
+4. **You get pulled back.** A quiet nudge or a full-screen warning, depending on how strict you want to be.
 
 ## Why
 
-Picking up your phone "for a second" is how an hour disappears. Blockers on the Mac can't see the phone in your hand. Doomore watches the signs that you've looked away from your work, with your Mac's own camera and input idle time, and interrupts the habit while it is still a habit.
+Picking up your phone "for a second" is how an hour disappears. Blockers on the Mac can't see the phone in your hand. Doomore watches the signs that you've looked away from your work, using your Mac's own camera and input idle time, and interrupts the habit while it is still a habit.
 
 ## What you get
 
-- **Lives in the menu bar.** Start monitoring when you sit down. It stays quiet until it has a reason to speak, and it never starts by itself.
-- **Notices the drift.** Head turned or tilted down, eyes lowered, hands off the keyboard, no mouse movement, all at once and for long enough to matter.
-- **Pushes back, your way.** Pick **Gentle**, **Standard** or **Strict**. Warnings range from a quiet notification to a full-screen interruption with a looping sound.
-- **Makes you pause on purpose.** Before the warning lets go you can be asked to wait 15 seconds, solve a quick math problem, type a commitment sentence, or stand up and stretch. Strict mode can also tuck other apps away. It hides them and never closes them, so no unsaved work is lost.
-- **Knows when to stay quiet.** Video calls pause reminders. You can limit reminders to chosen work apps, take a 5 minute break, or pause.
-- **Learns from you.** Tell it "Not a distraction" three times in a row and it becomes one step less sensitive.
+| | |
+|---|---|
+| **Lives in the menu bar** | Start when you sit down. It never starts by itself. |
+| **Notices the drift** | Head, eyes, hands, keyboard and mouse, all together and sustained. Never one signal alone. |
+| **Three intensities** | **Gentle** (quiet notification), **Standard**, **Strict** (full-screen warning with a looping sound). |
+| **Breaks the habit on purpose** | Wait 15 seconds, solve a math problem, type a commitment, or stand up and stretch before the warning lets go. Strict can tuck other apps away. It hides them and never closes them, so no unsaved work is lost. |
+| **Knows when to stay quiet** | Pauses during video calls. Limit it to chosen work apps, take a 5 minute break, or pause. |
+| **Learns from you** | Say "Not a distraction" three times in a row and it becomes one step less sensitive. |
 
 ## Install
 
@@ -52,6 +68,10 @@ Requires an Apple silicon Mac. The deployment target is macOS 14, but it has onl
 | Which models does it use? | Only the ones built into macOS (Vision). Nothing is downloaded or bundled. |
 
 See [SECURITY.md](SECURITY.md) for details and how to report a problem.
+
+## For developers
+
+Everything below is for people who want to understand, build, test or improve Doomore: [How it works](#how-it-works) · [Build from source](#build-from-source) · [Testing](#testing) · [Project layout](#project-layout) · [Documentation](#documentation).
 
 ## How it works
 
